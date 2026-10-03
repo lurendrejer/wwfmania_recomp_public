@@ -1,0 +1,6 @@
+# More buddies: in buddy mode (two players, each with a computer partner) every side gets a second
+# partner. The teams have three starting places each, so the player and two buddies fit. The extra
+# buddies are processes 4 (player 1's side) and 5 (player 2's), each a random wrestler.
+srcdir asm
+module MOREBUDDIES
+edit	WRESTLE.ASM	after	^\tPUSH\ta0,a1\t\t;store the two wrestlernums$	\tmove\t@more_buddies,a14\n\tcmpi\t2,a14\n\tjrlt\t#mbskip\n\tmovk\tPTYPE_DRONE,a8\n\tmovi\tPSIDE_PLYR1,a9\n\tmovk\t4,a10\n\tmovk\t7,a0\n\tcalla\tRNDRNG0\n\tmove\ta0,a11\n\tcmpi\t7,a11\n\tjrne\t#mbok1\n\tinc\ta11\n#mbok1\n\tSCREATE\tWMAIN_PID,wrestler_main\n\tcallr\tset_process_ptr2\n\tmovk\tPTYPE_DRONE,a8\n\tmovi\tPSIDE_PLYR2,a9\n\tmovk\t5,a10\n\tmovk\t7,a0\n\tcalla\tRNDRNG0\n\tmove\ta0,a11\n\tcmpi\t7,a11\n\tjrne\t#mbok2\n\tinc\ta11\n#mbok2\n\tSCREATE\tWMAIN_PID,wrestler_main\n\tcallr\tset_process_ptr2\n#mbskip

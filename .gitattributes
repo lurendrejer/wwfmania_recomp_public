@@ -1,0 +1,5 @@
+# The original source is kept byte for byte (CRLF, binary art files).
+orig/** -text -diff
+*.bat text eol=crlf
+*.sh text eol=lf
+android/gradlew text eol=lf

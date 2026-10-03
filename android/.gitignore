@@ -1,0 +1,8 @@
+# fetched by fetch-sdl.sh
+SDL/
+# build output
+.gradle/
+build/
+app/build/
+app/.cxx/
+local.properties

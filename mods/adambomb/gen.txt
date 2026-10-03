@@ -1,0 +1,55 @@
+# Adam Bomb (wrestler 7), cut from the shipped game for Lex Luger (mods/adambomb/README.md).
+# gen/mkadam.py makes him from Razor Ramon's code with Adam's own frames where he has them and
+# Razor's recoloured where he has not (gen/frames.txt), his crouton and his other palettes.
+script gen/mkadam.py
+srcdir asm
+srcdir img
+wrestler-lod ADAM
+lod ADAMB
+module ADAMTBL
+module ADAMB
+module ADBSEQ1
+module ADBSEQ2
+module ADBSEQ3
+module ADBSEQ4
+module ADAMMOD
+
+# Every table by wrestler gets Adam's entry from Razor's, renamed to Adam's copy where there is one.
+# Slot 7 is never chosen in the original game (the select screen has no square for it), so none of
+# this changes the game while the mod is off. Lines marked for Adam keep what the next edits set.
+edit	PROGRESS.ASM	sub	^\t\.long\tDNKBLU_P\t;7\t\(spare\)$	\t.long\tADMRED_P\t;7\t(A. Bomb)
+edit	DCSSOUND.ASM	sub	^\t\.WORD\s+0\t;7\tspare$	\t.WORD  20DH\t;7\t(A. Bomb: a wail of the others, not Razor's)
+edit	DCSSOUND.ASM	sub	^(\t\.word\t0000h,0\t\t;)ADAM BOMB$	\1A. BOMB (Razor's voice is his own)
+edit	*	slot	7=1!@(?i)spare|adam|unused	rzr_choking_anim=adm_choking_anim!,rzr_stand_anim=adm_stand_anim!,rzr_fdizzy_anim=adm_fdizzy_anim!,rzr_=adm_,razor_=adam_,move_razor=move_adam,R*=AB*
+edit	*	slot	Adam=Razor!	rzr_choking_anim=adm_choking_anim!,rzr_stand_anim=adm_stand_anim!,rzr_fdizzy_anim=adm_fdizzy_anim!,rzr_=adm_,razor_=adam_,move_razor=move_adam,R*=AB*
+edit	*	slot	spare=razor!	rzr_choking_anim=adm_choking_anim!,rzr_stand_anim=adm_stand_anim!,rzr_fdizzy_anim=adm_fdizzy_anim!,rzr_=adm_,razor_=adam_,move_razor=move_adam,R*=AB*
+# animations of Razor as the victim that live in another wrestler's file get a copy for Adam there
+# (the names in the renames above): the Undertaker's choke, and the dead wrestler standing up dizzy
+edit	UNDSEQ3.ASM	cloneblock	^rzr_choking_anim\s*$:^und_choking_anim\s*$	rzr_=adm_!,R*=AB*
+edit	FINISEQ.ASM	cloneblock	^ SUBRP\trzr_stand_anim\s*$:^ SUBRP\thrt_stand_anim\s*$	rzr_=adm_!,R*=AB*
+# entries without a comment of their own: between Doink's and Lex's, from Razor's six before
+edit	*	tokslot	6:^#?(dnk|doink):^#?lex:^#?(rzr_|razor_|move_razor$|rdizzy)	rzr_choking_anim=adm_choking_anim!,rzr_stand_anim=adm_stand_anim!,rzr_fdizzy_anim=adm_fdizzy_anim!,rzr_=adm_,razor_=adam_,move_razor=move_adam,R*=AB*
+edit	*	copyblock	^#Adam\s*$=^#Razor\s*$	rzr_choking_anim=adm_choking_anim!,rzr_stand_anim=adm_stand_anim!,rzr_fdizzy_anim=adm_fdizzy_anim!,rzr_=adm_,razor_=adam_,move_razor=move_adam,R*=AB*
+edit	TABLES.ASM	copyblock	^;7 Adam Bomb=^;1 Razor Ramon	rzr_choking_anim=adm_choking_anim!,rzr_stand_anim=adm_stand_anim!,rzr_fdizzy_anim=adm_fdizzy_anim!,rzr_=adm_,razor_=adam_,move_razor=move_adam,R*=AB*
+# his eight palettes (by the button held when he is chosen) and those of buddy mode (blue, red)
+edit	WRESTLE2.ASM	sub	{1}^\t\.long\t0,0,0,0,0,0,0,0\s*$	\t.long\tADMRED_P,ADMGRN_P,ADMYEL_P,ADMORG_P,ADMPNK_P,ADMBLU_P,ADMPRP_P,ADMGRY_P\t;(A. Bomb)
+edit	WRESTLE2.ASM	sub	{1}^\t\.long\t0,0\s*$	\t.long\tADMBLU_P,ADMRED_P
+# the ladder and the other screens between matches (PROGRESS.ASM): six tables of two, each edit takes the
+# first that is still marked spare
+edit	PROGRESS.ASM	sub	{1}^\t\.long\t0,0\t\t;7 spare$	\t.long\tadm_pg_taunt_anim,adm_torso4_anim\t;7 (A. Bomb)
+edit	PROGRESS.ASM	sub	{1}^\t\.long\t0,0\t\t;7 spare$	\t.long\tadm_stand4_anim,adm_torso4_anim\t;7 (A. Bomb)
+edit	PROGRESS.ASM	sub	{1}^\t\.long\t0,0\t\t;7 spare$	\t.long\tadm_dizzy_anim,adm_torso4_anim\t;7 (A. Bomb)
+edit	PROGRESS.ASM	sub	{1}^\t\.long\t0,0\t\t;7 spare$	\t.long\tadm_run2_anim,adm_torso4_anim\t;7 (A. Bomb)
+edit	PROGRESS.ASM	sub	{1}^\t\.long\t0,0\t\t;7 spare$	\t.long\tadm_pg_clever_anim,adm_torso4_anim\t;7 (A. Bomb)
+edit	PROGRESS.ASM	sub	{1}^\t\.long\t0,0\t\t;7 spare$	\t.long\tadm_pg_wait_anim,adm_torso4_anim\t;7 (A. Bomb)
+
+# his name and logo where the game shows the others' (gen/mkadam.py makes BIGADM and SHORTADM; the
+# logo is BIO1.IMG's ADM, the name NAM_ADM, both in the shipped art but loaded by no LOD)
+edit	LIFEBAR.ASM	tokslot	1:^NAM_DNK$:^NAM_LEX$:^NAM_DNK$	NAM_DNK=NAM_ADM!
+edit	LIFEBAR.ASM	tokslot	1:^SHORTDNK$:^SHORTLEX$:^SHORTDNK$	SHORTDNK=SHORTADM!
+edit	LIFEBAR.ASM	tokslot	1:^BIGDNK$:^BIGLEX$:^BIGDNK$	BIGDNK=BIGADM!
+# (the logo of the ladder screens, LOGO_IMAGE_TABLE[7], is not edited here: Lex is number 7 there too, so the mod
+# writes it at run time, mod.c, and the game with the mod off keeps Lex's)
+
+# The select screen: his square is square A of the extra squares (src/wolf/asm/XSQUARE.ASM), which mod.c
+# fills; the mugshot list is asm/ADAMMOD.ASM's adam_mug.

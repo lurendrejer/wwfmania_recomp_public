@@ -1,0 +1,13 @@
+# More drones: a one-player or cooperative match gets more computer opponents at once (up to 4).
+# The game already has 1 against 2 and 1 against 3 (the final battle of the world title
+# ladder): the life bar follows the closest opponent (rewire_monitor), the camera, clock and
+# sweat know about it. NUM_OPPS is what all of that looks at, so it is raised while the match
+# is on and put back afterwards (the progress screens after it expect the ladder's number).
+# The cooperative mode (royal rumble) comes through the same code with NUM_OPPS 2.
+srcdir asm
+module MOREDRONES
+edit	WRESTLE.ASM	after	^\tmove\t@NUM_OPPS,a3$	\tmove\t@PSTATUS,a14\n\tjrz\t#mdskip\n\tmove\t@more_drones,a14\n\tjrz\t#mdskip\n\tcmp\ta3,a14\n\tjrle\t#mdskip\n\tmove\ta3,@more_orig\n\tcalla\tmore_fill_lineup\n\tmove\t@more_drones,a3\n\tmove\ta3,@NUM_OPPS\n#mdskip
+edit	WRESTLE.ASM	after	^\tcalla\tpostgame_audits$	\tmove\t@more_orig,a14\n\tjrz\t#mdrest\n\tmove\ta14,@NUM_OPPS\n\tclr\ta14\n\tmove\ta14,@more_orig\n#mdrest
+# more than three per team: room for a fourth, on the bench side of the ring
+edit	WRESTLE.ASM	after	^\t\.word\tRING_X_CENTER-20,1127\+16,10,0\s*;third$	\t.word\tRING_X_CENTER-120,1127+130,9,0\t;fourth (mod)
+edit	WRESTLE.ASM	after	^\t\.word\tRING_X_CENTER\+20,1103\+16,6,0\s*;third$	\t.word\tRING_X_CENTER+120,1103+130,6,0\t;fourth (mod)

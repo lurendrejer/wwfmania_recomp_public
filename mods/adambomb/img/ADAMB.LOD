@@ -1,0 +1,30 @@
+;* ADAM BOMB (mods/adambomb) ********************************************
+;
+; Razor's frames recoloured for Adam and his crouton: made by gen/mkadam.py (in gen/lod, next to
+; this script when the generator copies it there)
+;
+ASM> adamrzr.tbl
+***> 0,0
+;
+IHDR SIZX:W,SIZY:W,ANIX:W,ANIY:W,SAG:L,CTRL:W,PAL:L,PWRD1:W,PWRD2:W,PWRD3:W,PT3Y:W
+;
+ZON>
+MON>
+BON>
+POF>
+;
+adamrzr.img
+;
+; the select screen: his crouton, his mugshot (in the shipped WWFMUGS.IMG, left out of MISC.LOD),
+; his name (METERS.IMG, the same) and his logo (BIO1.IMG, which no LOD loads)
+;
+ASM> adamsel.tbl
+IHDR SIZX:W,SIZY:W,ANIX:W,ANIY:W,SAG:L,CTRL:W,PAL:L
+;
+adamsel.img
+wwfmugs.img
+---> ADMUG_A,ADMUG_B,ADMUG_C,ADMUG_D,ADMUG_E,ADMUG_F,ADMUG_G,ADMUG_H
+meters.img
+---> NAM_ADM
+bio1.img
+---> ADM

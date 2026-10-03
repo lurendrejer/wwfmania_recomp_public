@@ -1,0 +1,6 @@
+# Chatterbox (mods/chatterbox/README.md): ADD_TO_QUEUE / ADD_IF_SILENT (DCSSOUND.ASM) say a line from a
+# table only if RNDPER passes the chance in a0 (in tenths of a percent, 200 for a punch). With the mod on the
+# chance is 1000: always.
+srcdir asm
+module CHATTER
+edit	DCSSOUND.ASM	sub	{1}^\tCALLA\tRNDPER$	\tmove\t@chatter_on,a14\n\tjrz\t#chno\n\tmovi\t1000,a0\n#chno\n\tCALLA\tRNDPER

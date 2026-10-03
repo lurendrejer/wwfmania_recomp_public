@@ -1,0 +1,99 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Where the game's data is looked for when the APK is built. Each one that exists is bundled into the APK's assets
+// (docs/ANDROID.md); one that does not is left out and the app is then filled in by hand. Override with
+// -PwwfImg=... -PwwfGen=... -PwwfSounds=...
+def wwfImg = file(project.findProperty('wwfImg') ?: "$rootDir/../orig/IMG")
+def wwfGen = file(project.findProperty('wwfGen') ?: (System.getenv('WWF_GEN') ?: "$rootDir/../build/gen"))
+def wwfSounds = file(project.findProperty('wwfSounds') ?: "$rootDir/../sounds")
+def wwfArt = file(project.findProperty('wwfArt') ?: "$rootDir/../art")
+def bundleDir = layout.buildDirectory.dir('wwfassets').get().asFile
+
+// Copies what exists to build/wwfassets under the names the app expects (orig/IMG, gen, sounds), and writes
+// filelist.txt (one relative path per line) and data.stamp (changes when the files do), which the app uses to copy
+// the assets to its storage once per version (src/util/dataextract.c).
+tasks.register('bundleWwfData') {
+    inputs.files(fileTree(wwfImg))        // fileTree of a directory that is not there is empty
+    inputs.files(fileTree(wwfGen) { exclude 'c/**' })
+    inputs.files(fileTree(wwfSounds))
+    inputs.files(fileTree(wwfArt))
+    outputs.dir(bundleDir)
+    doLast {
+        delete bundleDir
+        bundleDir.mkdirs()
+        def names = []
+        if (project.hasProperty('wwfNoData')) return    // -PwwfNoData=1: a small APK, the data is pushed with adb
+        [[wwfImg, 'orig/IMG'], [wwfGen, 'gen'], [wwfSounds, 'sounds'], [wwfArt, 'art']].each { src, dest ->
+            if (src.isDirectory()) {
+                fileTree(src) { if (dest == 'gen') { exclude 'c/**', '*.stamp' } }.files.sort { it.path }.each { f ->
+                    def rel = dest + '/' + src.toPath().relativize(f.toPath()).toString().replace('\\', '/')
+                    def to = new File(bundleDir, rel)
+                    to.parentFile.mkdirs()
+                    java.nio.file.Files.copy(f.toPath(), to.toPath())
+                    names << rel
+                }
+            }
+        }
+        if (!names.isEmpty()) {
+            new File(bundleDir, 'filelist.txt').text = names.join('\n') + '\n'
+            def md = java.security.MessageDigest.getInstance('SHA-1')
+            names.each { n -> md.update((n + ':' + new File(bundleDir, n).length() + '\n').getBytes('UTF-8')) }
+            new File(bundleDir, 'data.stamp').text = md.digest().encodeHex().toString()
+        }
+    }
+}
+preBuild.dependsOn 'bundleWwfData'
+
+android {
+    namespace 'org.wwf.wrestlemania'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'org.wwf.wrestlemania'
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName '0.1'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+        externalNativeBuild {
+            cmake {
+                arguments "-DCMAKE_BUILD_TYPE=Release", "-DSDL_DIR=$rootDir/SDL", "-DWWF_HOST_GEN=$wwfGen"
+                targets 'main'
+            }
+        }
+    }
+
+    // The release variant is the fast one (optimised native code, no debug checks). It is signed with the debug key so
+    // that it installs with adb: this is for your own devices, not for a store.
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+            debuggable false
+            jniDebuggable false
+            minifyEnabled false
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'jni/CMakeLists.txt'
+        }
+    }
+
+    sourceSets {
+        main {
+            // SDL's Java side (SDLActivity and the rest), fetched by android/fetch-sdl.sh
+            java.srcDirs += "$rootDir/SDL/android-project/app/src/main/java"
+            assets.srcDirs += bundleDir
+        }
+    }
+
+    // The images and sounds are big and already dense: store them, do not deflate them
+    aaptOptions {
+        noCompress ''
+    }
+}

@@ -1,0 +1,11 @@
+;* DINK (mods/dink) ******************************************************
+;
+; Made by gen/mkdink.py from Doink's (in gen/lod, next to this script when the generator copies it
+; there): his crouton, mugshot and names
+;
+ASM> dinkimg.tbl
+***> 0,0
+;
+IHDR SIZX:W,SIZY:W,ANIX:W,ANIY:W,SAG:L,CTRL:W,PAL:L
+;
+dink.img

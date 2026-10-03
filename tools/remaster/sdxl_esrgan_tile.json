@@ -1,0 +1,20 @@
+{
+  "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "%checkpoint%"}},
+  "2": {"class_type": "LoadImage", "inputs": {"image": "%image%"}},
+  "11": {"class_type": "UpscaleModelLoader", "inputs": {"model_name": "%upscale_model%"}},
+  "12": {"class_type": "ImageUpscaleWithModel", "inputs": {"upscale_model": ["11", 0], "image": ["2", 0]}},
+  "13": {"class_type": "ImageScale", "inputs": {"image": ["12", 0], "upscale_method": "lanczos",
+         "width": "%width%", "height": "%height%", "crop": "disabled"}},
+  "3": {"class_type": "CLIPTextEncode", "inputs": {"text": "%positive%", "clip": ["1", 1]}},
+  "4": {"class_type": "CLIPTextEncode", "inputs": {"text": "%negative%", "clip": ["1", 1]}},
+  "5": {"class_type": "ControlNetLoader", "inputs": {"control_net_name": "%controlnet%"}},
+  "6": {"class_type": "ControlNetApplyAdvanced", "inputs": {"positive": ["3", 0], "negative": ["4", 0],
+        "control_net": ["5", 0], "image": ["13", 0], "strength": "%control_strength%",
+        "start_percent": 0.0, "end_percent": 1.0}},
+  "7": {"class_type": "VAEEncode", "inputs": {"pixels": ["13", 0], "vae": ["1", 2]}},
+  "8": {"class_type": "KSampler", "inputs": {"model": ["1", 0], "positive": ["6", 0], "negative": ["6", 1],
+        "latent_image": ["7", 0], "seed": "%seed%", "steps": "%steps%", "cfg": "%cfg%",
+        "sampler_name": "dpmpp_2m", "scheduler": "karras", "denoise": "%denoise%"}},
+  "9": {"class_type": "VAEDecode", "inputs": {"samples": ["8", 0], "vae": ["1", 2]}},
+  "10": {"class_type": "SaveImage", "inputs": {"images": ["9", 0], "filename_prefix": "wwf_remaster"}}
+}

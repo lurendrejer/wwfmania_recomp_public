@@ -1,0 +1,24 @@
+# Dink: Doink the Clown drawn smaller (mods/dink/README.md). He is Doink (wrestler 6) in every table;
+# square B of the select screen's extra squares (src/wolf/asm/XSQUARE.ASM) marks the player who takes
+# him in xsq_smallp, and these edits draw that player's wrestler smaller. Nothing here does anything
+# while dink_enabled is zero.
+script gen/mkdink.py
+srcdir asm
+srcdir img
+lod DINK
+module DINKMOD
+# the pieces of a wrestler (ANIM.ASM set_images): the image's offset from his position and the DMA scale
+# of its object, and where the second piece (the torso on the legs) hangs
+edit	ANIM.ASM	after	^\tmove\t\*a0\(IANIOFFX\),a1$	\tcalla\tdink_sx
+edit	ANIM.ASM	after	{2}^\tmove\t\*a0\(IANIOFFY\),a1$	\tcalla\tdink_s1
+edit	ANIM.ASM	after	^\tsub\ta14,a10$	\tcalla\tdink_s10
+edit	ANIM.ASM	after	{2}^\tsub\ta14,a1$	\tcalla\tdink_s1
+edit	ANIM.ASM	after	^\t\.include\t"plyr\.equ"	\t.ref\tdink_sx,dink_s1,dink_s10
+# his name on the life bar (four places take it from name_tbl by the wrestler number; the meter, a5 or a1, has
+# the player number in MD_LINK) and at the end of a round
+edit	LIFEBAR.ASM	sub	{1}^\taddi\tname_tbl,a1$	\taddi\tname_tbl,a1\n\tcmpi\tname_tbl+6*32,a1\n\tjrne\t#dkn0\n\tmove\t*a5(MD_LINK),a14\n\tcalla\tdink_small_p\n\tjrz\t#dkn0\n\tmovi\tdink_namep,a1\n#dkn0
+edit	LIFEBAR.ASM	sub	{2}^\taddi\tname_tbl,a1$	\taddi\tname_tbl,a1\n\tcmpi\tname_tbl+6*32,a1\n\tjrne\t#dkn1\n\tmove\t*a5(MD_LINK),a14\n\tcalla\tdink_small_p\n\tjrz\t#dkn1\n\tmovi\tdink_namep,a1\n#dkn1
+edit	LIFEBAR.ASM	sub	{1}^\taddi\tname_tbl,a0$	\taddi\tname_tbl,a0\n\tcmpi\tname_tbl+6*32,a0\n\tjrne\t#dkn2\n\tmove\t*a1(MD_LINK),a14\n\tcalla\tdink_small_p\n\tjrz\t#dkn2\n\tmovi\tdink_namep,a0\n#dkn2
+edit	LIFEBAR.ASM	sub	{2}^\taddi\tname_tbl,a0$	\taddi\tname_tbl,a0\n\tcmpi\tname_tbl+6*32,a0\n\tjrne\t#dkn3\n\tmove\t*a1(MD_LINK),a14\n\tcalla\tdink_small_p\n\tjrz\t#dkn3\n\tmovi\tdink_namep,a0\n#dkn3
+edit	LIFEBAR.ASM	after	^\tADDI\tWHICH_WRESTLE_NAME,A2$	\tcmpi\tWHICH_WRESTLE_NAME+6*32,a2\n\tjrne\t#dkbig\n\tmove\t*a10(PLYRNUM),a14\n\tcalla\tdink_small_p\n\tjrz\t#dkbig\n\tmovi\tdink_bigp,a2\n#dkbig
+edit	LIFEBAR.ASM	after	^\t\.include\s+"plyr\.equ"	\t.ref\tdink_small_p,dink_namep,dink_bigp

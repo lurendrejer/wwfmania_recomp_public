@@ -1,0 +1,38 @@
+# The referee: orig/REF.ASM, REFSEQ1.ASM, REFIMG.ASM, IMG/REF.LOD; wrestler number 9 in the tables
+srcdir asm
+wrestler-lod REF
+module REF
+module REFSEQ1
+module REFIMG
+module REFMOD
+edit	*	slot	9=6	dnk_=ref_,doink_ani_init=ref_ani_init,move_doink=move_ref
+edit	WRESTLE.ASM	slot	9=6/8	dnk_=ref_,doink_ani_init=ref_ani_init,move_doink=move_ref
+edit	WRESTLE2.ASM	slot	9=6/8	dnk_=ref_,doink_ani_init=ref_ani_init,move_doink=move_ref
+edit	WRESTLE.ASM	after	^#wrestlers_created	\tmove\t@ref_enabled,a14\n\tjrz\t#refskip\n\tmovi\tPTYPE_REFEREE,a8\n\tmovi\tPSIDE_NONE,a9\n\tmovk\t6,a10\n\tmovk\t9,a11\n\tSCREATE\tWMAIN_PID,wrestler_main\n\tmove\ta0,@ref_process,L\n\tcallr\tset_process_ptr2\n#refskip
+
+edit	REF.ASM	after	^\s*\.long\s+mode_x9\s*;16	\t.long\tmode_x9\t\t;17\n\t.long\tmode_normal\t;18\n\t.long\tmode_x9\t\t;19\n\t.long\tmode_puppet\t;20\n\t.long\tmode_inair2\t;21\n\t.long\tmode_normal\t;22\n\t.long\tmode_normal\t;23\n\t.long\tmode_x9\t\t;24\n\t.long\tmode_x9\t\t;25
+edit	WRESTLE2.ASM	after	^\s*REFLONG\s+LEXWHT_P	\tREFLONG\tREF_P,REF_P,REF_P,REF_P,REF_P,REF_P,REF_P,REF_P\t;(Referee)
+edit	WRESTLE2.ASM	after	^\s*\.long\s+LEXPRP_P,LEXRED_P	\t.long\tREF_P,REF_P
+edit	REF.ASM	sub	^\tmovi\tprocess_ptrs,a0$	\tcalla\tref_wrestlers
+edit	REF.ASM	sub	^\tmove\t\*a0\+,a1,L$	
+edit	REF.ASM	sub	^\tmove\t\*a1\(OBJ_XPOSINT\),a4$	
+edit	REF.ASM	sub	^\tmove\t\*a1\(OBJ_ZPOSINT\),a5$	
+edit	REF.ASM	sub	^\tmove\t\*a0,a1,L$	
+edit	REF.ASM	sub	^\tmove\t\*a1\(OBJ_XPOSINT\),a6$	
+edit	REF.ASM	sub	^\tmove\t\*a1\(OBJ_ZPOSINT\),a7$	
+edit	REF.ASM	sub	^;(\tmovi\t100h,a0\t\t\t;temp fix!)$	\1
+edit	REF.ASM	sub	^;(\tmove\ta0,\*a13\(ANI_SPEED\))$	\1
+edit	REFSEQ1.ASM	sub	(J1TT5A|J1TR5Z)\+FR[5-9]\b	\1+FR4
+edit	REF.ASM	sub	^\tjrnn\t#el_too_far$	\tjrn\t#ref_close\n\tX8\ta1\n\tadd\ta1,a11\n\tjruc\t#el_too_far\n#ref_close
+# The referee cannot be hurt: his life never drops and projectiles pass through him. The
+# original has no knock down, fall or get up animations for him (REFSEQ1.ASM only has stands,
+# walks, turns and two light hits), so the tables for those have no entry for him.
+edit	LIFEBAR.ASM	after	^\tmove\t\*a13,a13,L$	\tmove\ta13,a13\n\tjrz\t#refok\n\tmove\t*a13(PLYR_TYPE),a14\n\tcmpi\tPTYPE_REFEREE,a14\n\tjrne\t#refok\n\tPULL\ta1,a3,a4,a5,a8,a10,a13\n\tclrc\n\trets\n#refok
+edit	REACT1.ASM	after	^ SUBR\twrestler_hit_special$	\tmove\t*a13(PLYR_TYPE),a14\n\tcmpi\tPTYPE_REFEREE,a14\n\tjrne\t#refok\n\trets\n#refok
+edit	WRESTLE.ASM	after	^\tcallr\tcalc_closest$	\tmove\t*a13(PLYR_TYPE),a14\n\tcmpi\tPTYPE_REFEREE,a14\n\tjrne\t#refkeep\n\tmove\t*a13(PLYRNUM),a14\n\tX32\ta14\n\taddi\tprocess_ptrs,a14\n\tclr\ta0\n\tmove\ta0,*a14,L\n#refkeep
+# he is not in process_ptrs (the AI would pick him as an opponent and the tables indexed by the
+# opponent's number have no entry for him), so set_images draws him from ref_process too
+edit	ANIM.ASM	after	^\tdsj\ta2,#slp$	\tmove\t@ref_process,a13,L\n\tjrz\t#noref\n\tcallr\t#set_image\n#noref
+edit	WRESTLE.ASM	sub	^\tcalla\tdrone_main$	\tmove\t*a13(PLYR_TYPE),a14\n\tcmpi\tPTYPE_REFEREE,a14\n\tjreq\t#zmb\n\tcalla\tdrone_main
+# buddy mode picks his palette by side (0 or 1); his side is PSIDE_NONE (-1), which read another wrestler's row
+edit	WRESTLE2.ASM	after	^\tmove\t\*a13\(PLYR_SIDE\),a14$	\tjrge\t#bsok\n\tclr\ta14\n#bsok

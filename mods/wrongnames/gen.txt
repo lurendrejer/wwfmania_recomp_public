@@ -1,0 +1,8 @@
+# Wrong names (mods/wrongnames/README.md): every place the announcer picks a line by wrestler number runs
+# the number through `wn_name` first: MAKE_ANNOUNCEMENT (the match intro, "X versus Y"), SET_UP_PERSONAL_CALL
+# ("give credit to X", "it does not look good for X", "giddup X", the chants) and WRESTLER_SPEECH (the finish).
+srcdir asm
+module WRNAMES
+edit	DCSSOUND.ASM	after	^SET_UP_PERSONAL_CALL$	\tmove\ta5,a14\n\tcalla\twn_name\n\tmove\ta14,a5
+edit	DCSSOUND.ASM	after	^WRESTLER_SPEECH$	\tmove\ta5,a14\n\tcalla\twn_name\n\tmove\ta14,a5
+edit	DCSSOUND.ASM	sub	^\tMOVE\t\*A4,A1$	\tMOVE\t*A4,A14\n\tcalla\twn_name\n\tmove\ta14,a1

@@ -1,0 +1,37 @@
+# Cooperative ladder: two humans play the one-player championship ladder (Intercontinental: 7 matches,
+# WWF: 7 matches, the last an 8-on-2) as one team against the computer's wrestlers.
+#
+# The game already has a cooperative mode, the royal rumble: both humans on the first team (player 2
+# is put on player 1's side while royal_rumble is set), one shared life bar, one camera, and the
+# computer's wrestlers one or two at a time. The mod keeps royal_rumble set during a ladder match and
+# separates what is about the two humans (left as it is) from what is about the line of eight (rr_line
+# in asm/COOPLADDER.ASM: the counter, the zombies, the clock, the rounds, the pin, the damage table).
+# Outside a ladder match nothing changes: coop_ladder is only ever set by coop_question, and that
+# needs the mod's number (coop_arg), which the machine writes only while the mod is on.
+srcdir asm
+module COOPLADDER
+edit	SELECT.ASM	after	^\tjrnz\t#oneplyrgm\s*$	\tmove\t@coop_ladder,a14\n\tjrnz\t#cl_next
+edit	SELECT.ASM	after	{1}^\tJSRP\task_belt_question\s*$	\tcalla\tcoop_question\n\tmove\t@coop_ladder,a14\n\tjrnz\t#cl_next
+edit	SELECT.ASM	sub	^#oneplyrgm\s*$	#cl_next\n\tmovk\t1,a14\n\tmove\ta14,@royal_rumble\n#oneplyrgm
+edit	WRESTLE.ASM	after	^\tJSRP\tselect_screen\s*$	\tclr\ta14\n\tmove\ta14,@coop_ladder
+edit	WRESTLE.ASM	sub	^\tJREQ\tNOT_FINISHED_GAME\s*$	\tjrne\t#cl_a\n\tmove\t@coop_ladder,a14\n\tjrz\tNOT_FINISHED_GAME\n#cl_a
+edit	WRESTLE.ASM	after	assumes that PLYRNUMs match PLYR_SIDEs for human players\.	\tmove\t@coop_ladder,a14\n\tjrz\t#clno\n\tmove\t@match_winner,a14\n\tcmpi\t1,a14\n\tjrnz\t#cllost\n\tmovk\t3,a14\t\t\t;the humans' team won: both go on\n\tmove\ta14,@match_winner\n\tjruc\tdo_pregame\n#cllost\t;both humans lost: both may continue, the match is fought again\n\tmovk\t3,a14\n\tmove\ta14,@OLD_PSTATUS\n\tmove\ta14,@rr_loss\n\tclr\ta14\n\tmove\ta14,@PSTATUS\n\tmove\ta14,@match_winner\n\tmove\ta14,@p1winstreak\n\tmove\ta14,@p2winstreak\n\tmove\ta14,@p1oldwinstreak\n\tmove\ta14,@p2oldwinstreak\n\tmove\t@CURRENT_LADDER,a0,L\n\tsubi\t20h,a0\n\tmove\ta0,@CURRENT_LADDER,L\n\tJSRP\tbuyin_select\n\tclr\ta14\n\tmove\ta14,@rr_loss\n\tmove\t@PSTATUS,a14\n\tjrz\t#cl_over\n\tcmpi\t3,a14\n\tjreq\tdo_pregame\n\tclr\ta14\t\t\t;only one of them continues: he plays the ladder alone\n\tmove\ta14,@coop_ladder\n\tjruc\tdo_pregame\n#cl_over\n\tjauc\tdo_game_over\n#clno
+edit	WRESTLE.ASM	after	^\tandi\tBUDDY_MODE,a8\s*$	\tmove\t@coop_ladder,a14\n\tjrz\t#clb1\n\tclr\ta8\n#clb1\tmove\ta8,a8
+edit	WRESTLE.ASM	after	^#no_buddies\s*$	\tmove\t@coop_ladder,a14\n\tjrnz\t#ndrone
+edit	WRESTLE.ASM	sub	{7}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	WRESTLE.ASM	sub	{5}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	WRESTLE.ASM	sub	{2}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	ANIM.ASM	after	^\t;drone\.\s*$	\tcalla\tcoop_final\n\tjrnz\t#rlife
+edit	ANIM.ASM	sub	^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	LIFEBAR.ASM	sub	{14}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	LIFEBAR.ASM	sub	{13}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	LIFEBAR.ASM	sub	{6}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	WRESTLE2.ASM	sub	{7}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	WRESTLE2.ASM	sub	{6}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	WRESTLE2.ASM	sub	{5}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	WRESTLE2.ASM	sub	{4}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	WRESTLE2.ASM	sub	{3}^\tmove\t@royal_rumble,a14\s*$	\tcalla\trr_line
+edit	AWARD.ASM	sub	^\tmove\t@royal_rumble,a14\t; Are we in royal rumble mode \?\s*$	\tcalla\trr_line
+edit	PROGRESS.ASM	after	^SETUP_LOGOS\s*$	\tmove\t@coop_ladder,a1\n\tjrz\t#clgn\n\tmove\t@PSTATUS,a1\n\tcmpi\t3,a1\n\tjrnz\t#clgn\n\tmove\t@index1,a1\n\tmovi\t-200,a6\n\tcallr\tFIND_LOGO_IMAGE\n\tcallr\tINIT_BLOC_STUFF\n\tmove\t*a1(ISIZEY),a3\n\tmovi\t128,a5\n\tsub\ta3,a5\n\tsrl\t1,a5\n\tsll\t16,a5\n\tcallr\tSETUP_THIS_LOGO_DAG\n\tmove\t@index2,a1\n\tmovi\t-200,a6\n\tcallr\tFIND_LOGO_IMAGE\n\tcallr\tINIT_BLOC_STUFF\n\tmove\t*a1(ISIZEY),a3\n\tmovi\t128,a5\n\tsub\ta3,a5\n\tsrl\t1,a5\n\taddi\t128,a5\n\tsll\t16,a5\n\tcallr\tSETUP_THIS_LOGO_DAG\n\tmovi\t400,a6\n\tjruc\t#cl_opp\n#clgn
+edit	PROGRESS.ASM	sub	^\tPUSHP\tA2\s*$	#cl_opp\n\tPUSHP\tA2
+edit	PROGRESS.ASM	after	{1}^\tor\ta14,a7\s*$	\tmove\t@coop_ladder,a14\n\tjrz\t#clx2\n\tmovk\t1,a14\n\tmove\t@index1,a0\n\tsll\ta0,a14\n\tor\ta14,a7\n#clx2

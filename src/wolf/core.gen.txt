@@ -1,0 +1,52 @@
+# Changes to the recompiled game that belong to the machine, not to a mod: they do
+# nothing unless wolf.c sets the variables they read (the wide view).
+srcdir asm
+module VIEWVARS
+# keep_onscreen: a wrestler outside the ring cannot go further from the middle of the
+# screen than 185 pixels; with a wider view that limit shows. Widen it by view_extra.
+edit	WRESTLE2.ASM	sub	^(\tsubi\t#BUFF[12],a0.*)$	\1\n\tmove\t@view_extra,a14\n\tsub\ta14,a0
+edit	WRESTLE2.ASM	sub	^(\taddi\t#BUFF[12],a1.*)$	\1\n\tmove\t@view_extra,a14\n\tadd\ta14,a1
+# With the option "free roam" (no ring-out timer) a wrestler can leave the ring without an opponent being out
+# there (all three ways out ask any_opp_outside).
+edit	WRESTLE2.ASM	after	^ SUBRP\tany_opp_outside$	\tmove\t@leave_ring,a14\n\tjrz\t#lrskip\n\tmovi\tleave_zero,a0\n\tsetc\n\trets\n#lrskip
+# With the option "no select timer" the character select clock never runs out (it also stays hidden: it shows
+# only for the last five seconds).
+edit	SELECT.ASM	sub	^\tdsj\ta9,#waitloop$	\tmove\t@no_select_timer,a14\n\tjrnz\t#waitloop\n\tdsj\ta9,#waitloop
+# With the option "no match timer" the round's clock stands still (it shows its start value).
+edit	WRESTLE2.ASM	after	^#dec_timer$	\tmove\t@no_match_timer,a14\n\tjrz\t#mtok\n\trets\n#mtok
+# The options "no white flashes" and "no red flashes": flash_white and flash_red fill the game's
+# 400 x 256 screen for a frame; in a wider view that is a square in the middle.
+edit	WRESTLE2.ASM	after	^ SUBR\tflash_white$	\tmove\t@no_flash_white,a14\n\tjrz\t#fwok\n\trets\n#fwok
+edit	WRESTLE2.ASM	after	^ SUBR\tflash_red$	\tmove\t@no_flash_red,a14\n\tjrz\t#frok\n\trets\n#frok
+# Buddy mode can give a computer partner wrestler number 7, which does not exist; wolf.c turns it into
+# 6 (Doink) once the process is there (apply_fixes), but choose_pal had already taken the palette from
+# row 7 of buddy_mode_pals, which is empty, so that Doink came out in broken colours. Take row 6.
+edit	WRESTLE2.ASM	after	^#buddy_mode$	\tmove\t*a13(WRESTLERNUM),a0\n\tcmpi\t7,a0\n\tjrne\t#bm_orig\n\tmovk\t6,a0\n\tX64\ta0\n\tmove\t*a13(PLYR_SIDE),a14\n\tX32\ta14\n\tadd\ta14,a0\n\taddi\t#buddy_mode_pals,a0\n\tmove\t*a0,a14,L\n\tmove\ta14,b0\n\trets\n#bm_orig
+# The hit of a projectile picks its splat by the projectile's id (SP_ID): 0 spirit, 1 reaper, 2 salt. Two more for the mods
+# that start the projectiles the game has but never throws: 3 the fireball (bamfire), 4 the pie (doinkpie).
+edit	SPECIAL.ASM	after	^\t\.long\tsaltsplat_anim$	\t.long\tfiresplat_anim\n\t.long\tpiesplat_anim
+edit	REACT1.ASM	after	^\tREFLONG\tsaltsplat_anim$	\tREFLONG\tfiresplat_anim\n\tREFLONG\tpiesplat_anim
+# Extra squares on the character select screen for the mods that bring a wrestler (asm/XSQUARE.ASM): while
+# xsq_on is zero all of this leaves the screen as it was. The eight move up, one extra square stands under them
+# in the middle, two side by side; their index is 8 (and 9).
+module XSQUARE
+edit	SELECT.ASM	after	^\t\.include\t"plyr\.equ"$	\t.def\tscramble_table,crouton_pos_table\n\t.ref\txsq_on,xsq_smallp,xsq_pos8,xsq_cpos,xsq_count,xsq_choose,xsq_names,xsq_mugs,xsq_croutons
+edit	SELECT.ASM	after	^ SUBR\tselect_screen$	\tmove\t@xsq_smallp,a14\t\t;the small ones of players 3 and up are chosen anew\n\tandi\t3,a14\n\tmove\ta14,@xsq_smallp
+edit	SELECT.ASM	after	^\tmovi\t#crouton_pic_table,a10$	\tmove\t@xsq_on,a14\n\tjrz\t#xsq0\n\tmovi\txsq_pos8,a9\n#xsq0
+edit	SELECT.ASM	after	^\tjrnz\t#crouton_loop$	\tcalla\txsq_croutons
+edit	SELECT.ASM	sub	^\taddi\tcrouton_pos_table,a1$	\tcalla\txsq_cpos
+edit	SELECT.ASM	after	^#stick_down$	\tmove\t@xsq_on,a14\n\tjrz\t#xsq1\n\tcmpi\t8,a11\n\tjrge\t#waitloop\n\tcmpi\t6,a11\n\tjrlt\t#xsq1\n\tcalla\txsq_count\n\tcmpi\t2,a14\n\tjreq\t#xsq1d\n\tmovk\t8,a11\n\tjruc\t#adjust\n#xsq1d\taddk\t2,a11\n\tjruc\t#adjust\n#xsq1
+edit	SELECT.ASM	after	^#stick_up$	\tcmpi\t8,a11\n\tjrlt\t#xsq2\n\tandi\t1,a11\n\taddk\t6,a11\n\tjruc\t#adjust\n#xsq2
+edit	SELECT.ASM	after	^#stick_right$	\tcmpi\t8,a11\n\tjrne\t#xsq3\n\tcalla\txsq_count\n\tcmpi\t2,a14\n\tjrne\t#waitloop\n#xsq3
+edit	SELECT.ASM	after	^#rnd_move_sideways$	\tcmpi\t8,a11\n\tjrne\t#xsq4\n\tcalla\txsq_count\n\tcmpi\t2,a14\n\tjrne\t#stick_up\n#xsq4
+edit	SELECT.ASM	after	^\tmovi\t7,a0$	\tcalla\txsq_count\n\tadd\ta14,a0
+edit	SELECT.ASM	sub	^\taddi\tscramble_table,a14$	\tcalla\txsq_choose
+edit	SELECT.ASM	after	^ SUBRP\t#update_name$	\tcmpi\t8,a11\n\tjrlt\t#xsq5\n\tmove\ta11,a0\n\tcalla\txsq_names\n\tPUSH\ta8\n\tmove\t*a13(#NAME),a8,L\n\tcalla\tcivanic\n\tPULL\ta8\n\trets\n#xsq5
+edit	SELECT.ASM	after	^\tPUSH\ta6,a7,a8,a10,a11$	\tcmpi\t8,a11\n\tjrlt\t#xsq6\n\tmove\ta11,a0\n\tcalla\txsq_mugs\n\tmove\ta0,a11\n\tjruc\t#xsq6m\n#xsq6
+edit	SELECT.ASM	after	^\tmove\t\*a11,a11,L$	#xsq6m
+edit	SELECT.ASM	after	^\tmovi\t\[0cbh,0\],a0	\tcalla\txsq_count\n\tmove\ta14,a14\n\tjrz\t#xsq7\n\tmovi\t[0e4h,0],a0\t\t;right of the extra squares\n\tcmpi\t2,a14\n\tjrne\t#xsq7\n\tmovi\t[0f4h,0],a0\n#xsq7
+# a wrestler with no name to call out on the select screen (0 in WHICH_SPEECH): nothing rather than a sound of nothing
+edit	SELECT.ASM	after	^\tMOVE\t\*A9,A0$	\tJRNZ\t#xsqspk\n\tCLR\tA0\n\tMOVE\tA0,@SPEECH_STARTED\n\tDIE\n#xsqspk
+# With "free roam" the stick has to be held against the ropes twice as long before the wrestler climbs out (idiot_check
+# in WRESTLE2.ASM: the ticks since the stick was first pushed, against IDIOT_COUNT).
+edit	WRESTLE2.ASM	sub	^\tcmpi\t#IDIOT_COUNT,a0\s*$	\tmove\t@leave_ring,a14\n\tjrz\t#idn\n\tsrl\t1,a0\n#idn\tcmpi\t#IDIOT_COUNT,a0

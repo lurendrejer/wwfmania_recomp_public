@@ -1,0 +1,45 @@
+# Four players: in buddy mode the two computer partners (processes 2 and 3) can be played by a
+# third and a fourth person. The partners are drones, whose controls are the words DRN_JOY and
+# DRN_BUT that drone_main fills in; while the mod is on, drone_main takes them from the mod
+# instead (fp_input in asm/FOURPLAYER.ASM) and then does what it always does with them.
+srcdir asm
+module FOURPLAYER
+edit	DRONE.ASM	after	^\tmove\t\*a13\(DRN_JOY\),a7\t;A7=Old joy$	\tcalla\tfp_input\n\tmove\ta0,a0\n\tjrz\t#fpno\n\tjauc\t#x\n#fpno
+edit	SELECT.ASM	after	^\t\.include\t"plyr\.equ"$	\t.def\tcall_wrestler_name
+# The select screen: a process draws a square for players 3 and 4, who pick a wrestler for their partner
+# (fp_pick3/4, used by choose_buddies); the screen waits a little for a player who has started to choose.
+edit	SELECT.ASM	after	^\t\.include\t"plyr\.equ"$	\t.def\tscramble_table,crouton_pos_table
+edit	SELECT.ASM	after	^\t;wait for them to finish up$	\tCREATE\t321h,fp_select
+edit	SELECT.ASM	after	^;Players have chosen their guys\.  wait a sec, then bail$	\tmovi\t600,a8\n#fpw\tSLEEPK\t1\n\tmove\t@fp_wait,a14\n\tjrz\t#fpwd\n\tdsj\ta8,#fpw\n#fpwd
+edit	WRESTLE2.ASM	after	^\tPULL\ta1\t\t;retrieve first WRESTLERNUM$	\tmove\t@fp_on,a14\n\tjrz\t#fpb2\n\tmove\t@fp_pick3,a14\n\tjrn\t#fpb1\n\tmove\ta14,a1\n#fpb1\tmove\t@fp_pick4,a14\n\tjrn\t#fpb2\n\tmove\ta14,a0\n#fpb2
+# The camera: with four wrestlers in the match it follows all of them, as in the royal rumble.
+edit	WRESTLE2.ASM	after	^\t;first, check for a royal rumble$	\tmove\t@fp_on,a14\n\tjrz\t#fpcam\n\tmove\t@buddy_mode_on,a14\n\tjrnz\t#rumble\n#fpcam
+# With three people a wrestler slot is empty (process_ptrs entry 0, the partner nobody plays is not made): the rumble
+# camera's live count read PLYRMODE, I_WILL_DIE and PLYRNUM at address 0 + offset, which is the top of the video
+# bitmap: it counted a wrestler that is not there, with a number taken from picture data, and the camera ran off to
+# wherever that pointed (when a wrestler jumped into the top row, the picture there changed). Skip empty slots.
+edit	WRESTLE2.ASM	after	^#lp3\tmove\t\*a0\+,a2,L\s*$	\tjrz\t#nxt3
+# Four mugshots: with the mod on the mugshots and names of players 1 and 2 are drawn at half size at the
+# top of their panels (fp_mug1); players 3 and 4 get theirs below (fp_showmug in FOURPLAYER.ASM). The names of the
+# wrestlers are not shown (fp_name1 takes the name object of player 1 or 2 off the screen, fp_showmug that of 3 and 4).
+edit	SELECT.ASM	after	^\tmove\ta8,\*a10\+,L\s*$	\tcalla\tfp_mug1
+edit	SELECT.ASM	after	{5}^\tcalla\tcivanic\s*$	\tcalla\tfp_name1
+edit	SELECT.ASM	sub	^(\tPULL\ta8,a11)\s*$	\tcalla\tfp_name1\n\1
+# The life bars of players 3 and 4, along the bottom (fp_mtr_init / fp_mtr_update); the top bars stay with players 1 and 2.
+edit	LIFEBAR.ASM	after	^\tcallr\tdo_win_streaks\s*$	\tcalla\tfp_mtr_init
+edit	LIFEBAR.ASM	after	{2}^\tcallr\tupdate_meter\s*$	\tcalla\tfp_mtr_update
+edit	LIFEBAR.ASM	after	^ SUBR\trewire_monitor\s*$	\tmove\t@fp_on,a14\n\tjrz\t#fprm\n\tmove\t@buddy_mode_on,a14\n\tjrz\t#fprm\n\tDIE\n#fprm
+edit	LIFEBAR.ASM	after	^\t\.bss\tlife_data,	\t.def\tlife_data
+# The select screen without the big panels behind the mugshots (fp_selmod in FOURPLAYER.ASM).
+edit	SELECT.ASM	sub	^(\tmovi\t#plyrsel_mod,a0)\s*$	\1\n\tcalla\tfp_bkmod
+# A partner joining during a match without partners stops it for the select screen (fp_mtr_update).
+edit	WRESTLE.ASM	after	^ SUBRP\tgame_interrupt\s*$	\t.def\tgame_interrupt
+# Buddy mode without computer partners: a partner nobody plays is not made (fp_has from mod.c), so three people are two against one.
+edit	WRESTLE.ASM	after	^\tPULL\ta11\t\t;get the first buddy	\tmove\t@fp_on,a14\n\tjrz\t#fpb1\n\tmove\t@fp_has,a14\n\tbtst\t0,a14\n\tjrnz\t#fpb1\n\tmovk\tPTYPE_DRONE,a8\n\tmovk\tPSIDE_PLYR2,a9\n\tjruc\t#fpnb1\n#fpb1
+# {2}: the first match is the line the previous edit inserted (a label there made 'jruc #fpnb1' jump to itself).
+edit	WRESTLE.ASM	after	{2}^\tmovk\tPSIDE_PLYR2,a9\s*$	#fpnb1
+edit	WRESTLE.ASM	after	^\tPULL\ta11\t\t;get the second buddy	\tmove\t@fp_on,a14\n\tjrz\t#fpb2\n\tmove\t@fp_has,a14\n\tbtst\t1,a14\n\tjrz\t#wrestlers_created\n#fpb2
+# Team colours for the cursors of players 1 and 2 (fp_curpal).
+edit	SELECT.ASM	after	^\tmove\ta3,\*a7\(OYPOS\)\s*$	\tcalla\tfp_curpal
+# No fly-in messages (high risk, 2x, reversal...) with partners in the match: they would land behind the bottom bars.
+edit	LIFEBAR.ASM	after	^ SUBRP\tSPECIAL_MESSAGE\s*$	\tmove\t@fp_on,a14\n\tjrz\t#fpsm\n\tmove\t@buddy_mode_on,a14\n\tjrz\t#fpsm\n\tDIE\n#fpsm

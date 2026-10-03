@@ -1,0 +1,36 @@
+# Bottom turnbuckles (mods/bottombuckles/README.md): the game only lets a wrestler climb the two turnbuckles at the far
+# edge of the ring (climb_turnbuckle wants UP + LEFT/RIGHT at the top rope). With the mod, DOWN + LEFT/RIGHT at the
+# near edge climbs the near ones with the same animations.
+srcdir asm
+module BOTTOMBUCKLES
+# the crowd fence's back corners first (fc_check, asm/BOTTOMBUCKLES.ASM): Up + Left/Right there climbs like a far turnbuckle
+edit	WRESTLE2.ASM	after	^ SUBR\tclimb_turnbuckle$	\tmove\t@bb_on,a14\n\tjrz\t#fcno\n\tPUSH\ta0\n\tcalla\tfc_check\n\tmove\ta0,a14\n\tPULL\ta0\n\tmove\ta14,a14\n\tjrz\t#fcno\n\tjauc\t#climbit\n#fcno
+# not at the top edge: try the bottom edge (bb_check, asm/BOTTOMBUCKLES.ASM, returns a3 = the direction to face, a0 = 0 if none)
+edit	WRESTLE2.ASM	after	^#not_top$	\tmove\t@bb_on,a14\n\tjrz\t#bbno\n\tcallr\tbb_check\n\tmove\ta0,a0\n\tjrz\t#bbno\n\tjauc\t#climbit\n#bbno
+# the game moves a near miss onto the corner: the bottom corner for a wrestler at the bottom edge
+edit	WRESTLE2.ASM	sub	{1}^\tmovi\tRING_TOP,a14$	\tmovi\tRING_TOP,a14\n\tmove\t*a13(OBJ_ZPOSINT),a0\n\tcmpi\t800,a0\n\tjrge\t#bbn\n\tmovi\tARENA_TOP,a14\n\tjruc\t#bbt\n#bbn\tcmpi\t1600,a0\n\tjrlt\t#bbn2\n\tmovi\tARENA_BOT,a14\n\tjruc\t#bbt\n#bbn2\tcmpi\t(RING_TOP+RING_BOT)/2,a0\n\tjrlt\t#bbt\n\tmovi\tRING_BOT,a14\n#bbt
+# the leap up onto the nearest turnbuckle: the corner is in the rope table's header (top: words 0 and 1, bottom: 2 and 3)
+edit	SHNSEQ2.ASM	sub	^\tmove\t\*a0\+,a1,W\t\t;X$	\tmove\t@bb_on,a14\n\tjrz\t#bbl\n\tmove\t*a13(OBJ_ZPOSINT),a14\n\tcmpi\t800,a14\n\tjrlt\t#bbf\n\tcmpi\t1600,a14\n\tjrge\t#bbf\n\tcmpi\t(RING_TOP+RING_BOT)/2,a14\n\tjrlt\t#bbl\n\taddk\t32,a0\n\tjruc\t#bbl\n#bbf\tcalla\tfc_table\n#bbl\n\tmove\t*a0+,a1,W\t\t;X
+# Standing on a turnbuckle, Down climbs down (mode_onturnbkl of every wrestler): right for the far posts, where Down
+# is towards the ring. On a near post Down is away from the ring, and it is what was held to climb up, so there Up climbs down
+# (bb_swap_ud exchanges Up and Down in the stick value when the wrestler is at the bottom edge).
+edit	ADAM.ASM	sub	{3}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+edit	BAM.ASM	sub	{2}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+edit	BRET.ASM	sub	{2}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+edit	DNK.ASM	sub	{2}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+edit	DOINK.ASM	sub	{2}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+edit	LEX.ASM	sub	{2}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+edit	RAZOR.ASM	sub	{2}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+edit	SHAWN.ASM	sub	{2}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+edit	TAKER.ASM	sub	{2}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+edit	YOKO.ASM	sub	{2}^\tbtst\tPLAYER_DOWN_BIT,a0$	\tcalla\tbb_swap_ud\n\tbtst\tPLAYER_DOWN_BIT,a0
+# A leap from a fence corner: the game pulls a wrestler outside the ring into it when the attack starts and none of the opponents
+# is out there (set_tbukl_confine); from the fence he stays where he is and flies to the opponent instead.
+edit	WRESTLE2.ASM	after	^#clear_noconfine$	\tmove\t@bb_on,a14\n\tjrz\t#fcnc\n\tmove\t*a13(INRING),a14\n\tjrnz\t#set_noconfine\n#fcnc
+# ...and the flight is as long as the distance needs (fc_leap), with room for a higher arc
+edit	ANIM.ASM	after	^\tmove\t\*a4\+,a9\t\t\t;max distance to travel$	\tmove\t@bb_on,a14\n\tjrz\t#fclp\n\tmove\t*a13(INRING),a14\n\tjrz\t#fclp\n\tcalla\tfc_leap\n#fclp
+edit	ANIM.ASM	sub	^\tcmpi\t>0f0000,a1$	\tmovi\t>0f0000,a14\n\tmove\t@bb_on,a2\n\tjrz\t#fcy1\n\tmove\t*a13(INRING),a2\n\tjrz\t#fcy1\n\tmovi\t>240000,a14\n#fcy1\tcmp\ta14,a1
+edit	ANIM.ASM	sub	^\tmovi\t>0f0000,a1$	\tmove\ta14,a1
+edit	ANIM.ASM	after	^\tmove\ta14,\*a10\(OANIPC\),L$	\tmove\t@bb_on,a14\n\tjrz\t#fclo\n\tmove\t*a13(INRING),a14\n\tjrz\t#fclo\n\tcalla\tfc_leapopp\n#fclo
+# a wrestler over the ring after a leap from a fence corner is in the ring (fc_enter)
+edit	WRESTLE2.ASM	after	^ SUBR\tkeep_onscreen$	\tcalla\tfc_enter

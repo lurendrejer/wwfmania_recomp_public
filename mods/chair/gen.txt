@@ -1,0 +1,21 @@
+# The chair (mods/chair/README.md): the pick-up and swing scripts every wrestler but Adam Bomb has, commented
+# out in orig/*SEQ3.ASM, made into a move (asm/CHAIRSEQ.ASM, written by mkchair.py). The art (CHAIR.IMG,
+# CHAIR_P) is already in the build. Down, Down, Block, at the side of the ring, picks it up; any button swings it.
+srcdir asm
+module CHAIR
+# the move, in every wrestler's secret move table
+edit	BRET.ASM	after	^\t\.long\t#grab_fling$	\t.long\tchair_rec
+edit	RAZOR.ASM	after	^\t\.long\t#grab_fling$	\t.long\tchair_rec
+edit	TAKER.ASM	after	^\t\.long\t#grab_fling$	\t.long\tchair_rec
+edit	YOKO.ASM	after	^\t\.long\t#grab_fling$	\t.long\tchair_rec
+edit	SHAWN.ASM	after	^\t\.long\t#grab_fling$	\t.long\tchair_rec
+edit	BAM.ASM	after	^\t\.long\t#grab_fling$	\t.long\tchair_rec
+edit	DOINK.ASM	after	^\t\.long\t#grab_fling$	\t.long\tchair_rec
+edit	LEX.ASM	after	^\t\.long\t#grab_fling$	\t.long\tchair_rec
+# walking with it: chair_control, every tick, before the secret moves
+edit	WRESTLE.ASM	after	^ SUBR\tcheck_secret_moves$	\tcalla\tchair_control\n\tjrc\t#done
+# carrying it: the holding frame instead of his standing frame, its upper part instead of his walking torso
+# his legs walk facing the screen, the way he holds it (the second FACING_DIR read in change_walk_anim)
+edit	WRESTLE.ASM	after	{2}^\tmove\t\*a13\(FACING_DIR\),a0$	\tcalla\tchair_legs
+edit	ANIM.ASM	after	^\tmove\t\*a13\(CUR_FRAME\),a0,L$	\tcalla\tchair_body
+edit	ANIM.ASM	after	^\tmove\t\*a13\(CUR_FRAME2\),a0,L$	\tcalla\tchair_torso

@@ -1,0 +1,120 @@
+# Easy special moves: Toward, Toward + a button for every special move, Down, Down + a button when that
+# is taken (mods/easymoves/README.md). Written by mods/easymoves/mkgen.py; do not edit by hand.
+# The extra records and processes are there all the time; they do nothing unless the mod has set
+# easy_enabled, so the game is the original without the mod.
+srcdir asm
+module EASYMOVES
+edit	BRET.ASM	sub	^#grab_fling\s*$	#grab_fling_easy\n\t.word\tB_SKICK,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#grab_fling_erun\n#grab_fling_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#grab_fling_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_SKICK_VAL,a0\n\tmovi\tPLAYER_SPUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_grabfling\n#grab_fling_eout\n\trets\n#grab_fling
+edit	BRET.ASM	after	^\t\.long\t#grab_fling$	\t.long\t#grab_fling_easy
+edit	BRET.ASM	sub	^#hip_toss\s*$	#hip_toss_easy\n\t.word\tB_KICK,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#hip_toss_erun\n#hip_toss_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#hip_toss_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_KICK_VAL,a0\n\tmovi\tPLAYER_PUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_hiptoss\n#hip_toss_eout\n\trets\n#hip_toss
+edit	BRET.ASM	after	^\t\.long\t#hip_toss$	\t.long\t#hip_toss_easy
+edit	BRET.ASM	sub	^#face_rake\s*$	#face_rake_easy\n\t.word\tB_PUNCH,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#face_rake_erun\n#face_rake_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#face_rake_eout\n\tjruc\t#scrt_facerake\n#face_rake_eout\n\trets\n#face_rake
+edit	BRET.ASM	after	^\t\.long\t#face_rake$	\t.long\t#face_rake_easy
+edit	BRET.ASM	sub	^#jump_kick\s*$	#jump_kick_easy\n\t.word\tB_SKICK,\t\tJ_ALL\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#jump_kick_erun\n#jump_kick_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#jump_kick_eout\n\tjruc\t#scrt_flykick\n#jump_kick_eout\n\trets\n#jump_kick
+edit	BRET.ASM	after	^\t\.long\t#jump_kick$	\t.long\t#jump_kick_easy
+edit	BRET.ASM	clone	hrt_grab_toss_air	hrt_grab_toss_air_easy J_TOWARD B_KICK B_PUNCH
+edit	BRET.ASM	after	^\t\.long\thrt_grab_toss_air$	\t.long\thrt_grab_toss_air_easy
+edit	BRET.ASM	clone	hrt_roll_uppercut	hrt_roll_uppercut_easy J_DOWN B_KICK B_SPUNCH
+edit	BRET.ASM	after	^\t\.long\thrt_roll_uppercut$	\t.long\thrt_roll_uppercut_easy
+edit	BRET.ASM	clone	hrt_hdhold_pile	hrt_hdhold_pile_easy J_TOWARD B_KICK B_SPUNCH
+edit	BRET.ASM	after	^\t\.long\thrt_hdhold_pile$	\t.long\thrt_hdhold_pile_easy
+edit	BRET.ASM	clone	hrt_hdhold_faceslam	hrt_hdhold_faceslam_easy J_DOWN B_KICK B_PUNCH
+edit	BRET.ASM	after	^\t\.long\thrt_hdhold_faceslam$	\t.long\thrt_hdhold_faceslam_easy
+edit	RAZOR.ASM	sub	^#grab_fling\s*$	#grab_fling_easy\n\t.word\tB_SKICK,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#grab_fling_erun\n#grab_fling_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#grab_fling_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_SKICK_VAL,a0\n\tmovi\tPLAYER_SPUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_grabfling\n#grab_fling_eout\n\trets\n#grab_fling
+edit	RAZOR.ASM	after	^\t\.long\t#grab_fling$	\t.long\t#grab_fling_easy
+edit	RAZOR.ASM	sub	^#hip_toss\s*$	#hip_toss_easy\n\t.word\tB_PUNCH,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#hip_toss_erun\n#hip_toss_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#hip_toss_eout\n\tjruc\t#scrt_hiptoss\n#hip_toss_eout\n\trets\n#hip_toss
+edit	RAZOR.ASM	after	^\t\.long\t#hip_toss$	\t.long\t#hip_toss_easy
+edit	RAZOR.ASM	sub	^#down_slash\s*$	#down_slash_easy\n\t.word\tB_SKICK,\t\tJ_ALL\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#down_slash_erun\n#down_slash_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#down_slash_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_SKICK_VAL,a0\n\tmovi\tPLAYER_PUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#dslash\n#down_slash_eout\n\trets\n#down_slash
+edit	RAZOR.ASM	after	^\t\.long\t#down_slash$	\t.long\t#down_slash_easy
+edit	RAZOR.ASM	clone	rzr_grab_toss_air	rzr_grab_toss_air_easy J_TOWARD B_PUNCH B_PUNCH
+edit	RAZOR.ASM	after	^\t\.long\trzr_grab_toss_air$	\t.long\trzr_grab_toss_air_easy
+edit	RAZOR.ASM	clone	rzr_hdhold_combo1	rzr_hdhold_combo1_easy J_TOWARD B_SKICK B_SPUNCH
+edit	RAZOR.ASM	after	^\t\.long\trzr_hdhold_combo1$	\t.long\trzr_hdhold_combo1_easy
+edit	RAZOR.ASM	clone	rzr_hdhold_edge	rzr_hdhold_edge_easy J_TOWARD B_SKICK B_SPUNCH
+edit	RAZOR.ASM	after	^\t\.long\trzr_hdhold_edge$	\t.long\trzr_hdhold_edge_easy
+edit	TAKER.ASM	sub	^#grab_fling\s*$	#grab_fling_easy\n\t.word\tB_KICK,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#grab_fling_erun\n#grab_fling_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#grab_fling_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_KICK_VAL,a0\n\tmovi\tPLAYER_SPUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_grabfling\n#grab_fling_eout\n\trets\n#grab_fling
+edit	TAKER.ASM	after	^\t\.long\t#grab_fling$	\t.long\t#grab_fling_easy
+edit	TAKER.ASM	sub	^#hip_toss\s*$	#hip_toss_easy\n\t.word\tB_PUNCH,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#hip_toss_erun\n#hip_toss_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#hip_toss_eout\n\tjruc\t#scrt_hiptoss\n#hip_toss_eout\n\trets\n#hip_toss
+edit	TAKER.ASM	after	^\t\.long\t#hip_toss$	\t.long\t#hip_toss_easy
+edit	TAKER.ASM	clone	und_spirit_pull	und_spirit_pull_easy J_DOWN B_SKICK B_KICK
+edit	TAKER.ASM	after	^\t\.long\tund_spirit_pull$	\t.long\tund_spirit_pull_easy
+edit	TAKER.ASM	clone	und_spirit_push	und_spirit_push_easy J_DOWN B_KICK B_KICK
+edit	TAKER.ASM	after	^\t\.long\tund_spirit_push$	\t.long\tund_spirit_push_easy
+edit	TAKER.ASM	clone	und_grab_toss_air	und_grab_toss_air_easy J_TOWARD B_PUNCH B_PUNCH
+edit	TAKER.ASM	after	^\t\.long\tund_grab_toss_air$	\t.long\tund_grab_toss_air_easy
+edit	TAKER.ASM	clone	und_choke_slide	und_choke_slide_easy J_DOWN B_PUNCH B_PUNCH
+edit	TAKER.ASM	after	^\t\.long\tund_choke_slide$	\t.long\tund_choke_slide_easy
+edit	TAKER.ASM	clone	und_hdhold_neckbrk	und_hdhold_neckbrk_easy J_TOWARD B_PUNCH B_SPUNCH
+edit	TAKER.ASM	after	^\t\.long\tund_hdhold_neckbrk$	\t.long\tund_hdhold_neckbrk_easy
+edit	YOKO.ASM	sub	^#grab_fling\s*$	#grab_fling_easy\n\t.word\tB_KICK,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#grab_fling_erun\n#grab_fling_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#grab_fling_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_KICK_VAL,a0\n\tmovi\tPLAYER_SPUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_grabfling\n#grab_fling_eout\n\trets\n#grab_fling
+edit	YOKO.ASM	after	^\t\.long\t#grab_fling$	\t.long\t#grab_fling_easy
+edit	YOKO.ASM	sub	^#hip_toss\s*$	#hip_toss_easy\n\t.word\tB_SKICK,\t\tJ_ALL\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#hip_toss_erun\n#hip_toss_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#hip_toss_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_SKICK_VAL,a0\n\tmovi\tPLAYER_PUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_hiptoss\n#hip_toss_eout\n\trets\n#hip_toss
+edit	YOKO.ASM	after	^\t\.long\t#hip_toss$	\t.long\t#hip_toss_easy
+edit	YOKO.ASM	sub	^#jabs\s*$	#jabs_easy\n\t.word\tB_KICK,\t\tJ_ALL\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#jabs_erun\n#jabs_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#jabs_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_KICK_VAL,a0\n\tmovi\tPLAYER_PUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_jabs\n#jabs_eout\n\trets\n#jabs
+edit	YOKO.ASM	after	^\t\.long\t#jabs$	\t.long\t#jabs_easy
+edit	YOKO.ASM	clone	yok_salt_throw	yok_salt_throw_easy J_DOWN B_PUNCH B_PUNCH
+edit	YOKO.ASM	after	^\t\.long\tyok_salt_throw$	\t.long\tyok_salt_throw_easy
+edit	YOKO.ASM	clone	yok_grab_toss_air	yok_grab_toss_air_easy J_DOWN B_SKICK B_PUNCH
+edit	YOKO.ASM	after	^\t\.long\tyok_grab_toss_air$	\t.long\tyok_grab_toss_air_easy
+edit	YOKO.ASM	clone	yok_hdhold_combo1	yok_hdhold_combo1_easy J_TOWARD B_SKICK B_SPUNCH
+edit	YOKO.ASM	after	^\t\.long\tyok_hdhold_combo1$	\t.long\tyok_hdhold_combo1_easy
+edit	YOKO.ASM	clone	yok_hdhold_scissor	yok_hdhold_scissor_easy J_TOWARD B_SKICK B_SPUNCH
+edit	YOKO.ASM	after	^\t\.long\tyok_hdhold_scissor$	\t.long\tyok_hdhold_scissor_easy
+edit	SHAWN.ASM	sub	^#grab_fling\s*$	#grab_fling_easy\n\t.word\tB_PUNCH,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#grab_fling_erun\n#grab_fling_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#grab_fling_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_PUNCH_VAL,a0\n\tmovi\tPLAYER_SPUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_grabfling\n#grab_fling_eout\n\trets\n#grab_fling
+edit	SHAWN.ASM	after	^\t\.long\t#grab_fling$	\t.long\t#grab_fling_easy
+edit	SHAWN.ASM	sub	^#hip_toss\s*$	#hip_toss_easy\n\t.word\tB_SKICK,\t\tJ_ALL\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#hip_toss_erun\n#hip_toss_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#hip_toss_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_SKICK_VAL,a0\n\tmovi\tPLAYER_PUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_hiptoss\n#hip_toss_eout\n\trets\n#hip_toss
+edit	SHAWN.ASM	after	^\t\.long\t#hip_toss$	\t.long\t#hip_toss_easy
+edit	SHAWN.ASM	sub	^#jump_kick\s*$	#jump_kick_easy\n\t.word\tB_KICK,\t\tJ_ALL\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#jump_kick_erun\n#jump_kick_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#jump_kick_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_KICK_VAL,a0\n\tmovi\tPLAYER_SKICK_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_flykick\n#jump_kick_eout\n\trets\n#jump_kick
+edit	SHAWN.ASM	after	^\t\.long\t#jump_kick$	\t.long\t#jump_kick_easy
+edit	SHAWN.ASM	clone	shn_swirl_speedkick	shn_swirl_speedkick_easy J_DOWN B_PUNCH B_KICK
+edit	SHAWN.ASM	after	^\t\.long\tshn_swirl_speedkick$	\t.long\tshn_swirl_speedkick_easy
+edit	SHAWN.ASM	clone	shn_flipslam	shn_flipslam_easy J_DOWN B_SPUNCH B_SPUNCH
+edit	SHAWN.ASM	after	^\t\.long\tshn_flipslam$	\t.long\tshn_flipslam_easy
+edit	SHAWN.ASM	clone	shn_grab_toss_air	shn_grab_toss_air_easy J_DOWN B_SKICK B_PUNCH
+edit	SHAWN.ASM	after	^\t\.long\tshn_grab_toss_air$	\t.long\tshn_grab_toss_air_easy
+edit	SHAWN.ASM	clone	shn_hdhold_frank	shn_hdhold_frank_easy J_DOWN B_KICK B_SPUNCH
+edit	SHAWN.ASM	after	^\t\.long\tshn_hdhold_frank$	\t.long\tshn_hdhold_frank_easy
+edit	BAM.ASM	sub	^#grab_fling\s*$	#grab_fling_easy\n\t.word\tB_SKICK,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#grab_fling_erun\n#grab_fling_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#grab_fling_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_SKICK_VAL,a0\n\tmovi\tPLAYER_SPUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_grabfling\n#grab_fling_eout\n\trets\n#grab_fling
+edit	BAM.ASM	after	^\t\.long\t#grab_fling$	\t.long\t#grab_fling_easy
+edit	BAM.ASM	sub	^#hip_toss\s*$	#hip_toss_easy\n\t.word\tB_KICK,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#hip_toss_erun\n#hip_toss_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#hip_toss_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_KICK_VAL,a0\n\tmovi\tPLAYER_PUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_hiptoss\n#hip_toss_eout\n\trets\n#hip_toss
+edit	BAM.ASM	after	^\t\.long\t#hip_toss$	\t.long\t#hip_toss_easy
+edit	BAM.ASM	sub	^#jumpkick\s*$	#jumpkick_easy\n\t.word\tB_PUNCH,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#jumpkick_erun\n#jumpkick_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#jumpkick_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_PUNCH_VAL,a0\n\tmovi\tPLAYER_SKICK_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_flykick\n#jumpkick_eout\n\trets\n#jumpkick
+edit	BAM.ASM	after	^\t\.long\t#jumpkick$	\t.long\t#jumpkick_easy
+edit	BAM.ASM	clone	bam_grab_toss_air	bam_grab_toss_air_easy J_TOWARD B_KICK B_PUNCH
+edit	BAM.ASM	after	^\t\.long\tbam_grab_toss_air$	\t.long\tbam_grab_toss_air_easy
+edit	BAM.ASM	clone	bam_hdhold_combo1	bam_hdhold_combo1_easy J_TOWARD B_SKICK B_SPUNCH
+edit	BAM.ASM	after	^\t\.long\tbam_hdhold_combo1$	\t.long\tbam_hdhold_combo1_easy
+edit	BAM.ASM	clone	bam_hdhold_pile	bam_hdhold_pile_easy J_TOWARD B_SKICK B_SPUNCH
+edit	BAM.ASM	after	^\t\.long\tbam_hdhold_pile$	\t.long\tbam_hdhold_pile_easy
+edit	DOINK.ASM	sub	^#grab_fling\s*$	#grab_fling_easy\n\t.word\tB_KICK,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#grab_fling_erun\n#grab_fling_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#grab_fling_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_KICK_VAL,a0\n\tmovi\tPLAYER_SPUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_grabfling\n#grab_fling_eout\n\trets\n#grab_fling
+edit	DOINK.ASM	after	^\t\.long\t#grab_fling$	\t.long\t#grab_fling_easy
+edit	DOINK.ASM	sub	^#hip_toss\s*$	#hip_toss_easy\n\t.word\tB_PUNCH,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#hip_toss_erun\n#hip_toss_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#hip_toss_eout\n\tjruc\t#scrt_hiptoss\n#hip_toss_eout\n\trets\n#hip_toss
+edit	DOINK.ASM	after	^\t\.long\t#hip_toss$	\t.long\t#hip_toss_easy
+edit	DOINK.ASM	sub	^#earslap\s*$	#earslap_easy\n\t.word\tB_SKICK,\t\tJ_ALL\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#earslap_erun\n#earslap_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#earslap_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_SKICK_VAL,a0\n\tmovi\tPLAYER_PUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_earslap\n#earslap_eout\n\trets\n#earslap
+edit	DOINK.ASM	after	^\t\.long\t#earslap$	\t.long\t#earslap_easy
+edit	DOINK.ASM	clone	dnk_grab_toss_air	dnk_grab_toss_air_easy J_TOWARD B_PUNCH B_PUNCH
+edit	DOINK.ASM	after	^\t\.long\tdnk_grab_toss_air$	\t.long\tdnk_grab_toss_air_easy
+edit	DOINK.ASM	clone	dnk_hdhold_combo1	dnk_hdhold_combo1_easy J_TOWARD B_KICK B_SPUNCH
+edit	DOINK.ASM	after	^\t\.long\tdnk_hdhold_combo1$	\t.long\tdnk_hdhold_combo1_easy
+edit	DOINK.ASM	clone	dnk_hdhold_pile	dnk_hdhold_pile_easy J_TOWARD B_KICK B_SPUNCH
+edit	DOINK.ASM	after	^\t\.long\tdnk_hdhold_pile$	\t.long\tdnk_hdhold_pile_easy
+edit	DOINK.ASM	clone	dnk_hdhold_buzz	dnk_hdhold_buzz_easy J_TOWARD B_PUNCH B_PUNCH
+edit	DOINK.ASM	after	^\t\.long\tdnk_hdhold_buzz$	\t.long\tdnk_hdhold_buzz_easy
+edit	LEX.ASM	sub	^#grab_fling\s*$	#grab_fling_easy\n\t.word\tB_KICK,\t\tJ_ALL\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\tJ_TOWARD,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#grab_fling_erun\n#grab_fling_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#grab_fling_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_KICK_VAL,a0\n\tmovi\tPLAYER_SPUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_grabfling\n#grab_fling_eout\n\trets\n#grab_fling
+edit	LEX.ASM	after	^\t\.long\t#grab_fling$	\t.long\t#grab_fling_easy
+edit	LEX.ASM	sub	^#hip_toss\s*$	#hip_toss_easy\n\t.word\tB_SKICK,\t\tJ_ALL\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\tJ_DOWN,\t\tJ_REAL_LR\n\t.word\t8000h | 32\n\t.long\t#hip_toss_erun\n#hip_toss_erun\n\tmove\t@easy_enabled,a0\n\tjrz\t#hip_toss_eout\n\tPUSH\ta0,a1\n\tmovi\tPLAYER_SKICK_VAL,a0\n\tmovi\tPLAYER_PUNCH_VAL,a1\n\tcalla\teasy_alias\n\tPULL\ta0,a1\n\tjruc\t#scrt_hiptoss\n#hip_toss_eout\n\trets\n#hip_toss
+edit	LEX.ASM	after	^\t\.long\t#hip_toss$	\t.long\t#hip_toss_easy
+edit	LEX.ASM	clone	lex_grab_toss_air	lex_grab_toss_air_easy J_DOWN B_SKICK B_PUNCH
+edit	LEX.ASM	after	^\t\.long\tlex_grab_toss_air$	\t.long\tlex_grab_toss_air_easy
+edit	LEX.ASM	clone	lex_hdhold_pile	lex_hdhold_pile_easy J_TOWARD B_PUNCH B_SPUNCH
+edit	LEX.ASM	after	^\t\.long\tlex_hdhold_pile$	\t.long\tlex_hdhold_pile_easy
+edit	LEX.ASM	clone	lex_hdhold_graboh	lex_hdhold_graboh_easy J_DOWN B_KICK B_KICK
+edit	LEX.ASM	after	^\t\.long\tlex_hdhold_graboh$	\t.long\tlex_hdhold_graboh_easy
+# Repeating moves (Doink's hammer, Lex's morning star) repeat on the kick button in the original;
+# with the mod it is the super kick they start with. The check reads KICKB_COUNT, so the count of
+# super kicks is copied over it first.
+edit	DNKSEQ2.ASM	sub	^(\tWWWL\tANI_IF_BUTCOUNT_LT,KICKB_COUNT,[12],#(missedb|failed))$	\tWL\tANI_CODE,easy_sync_kick\n\1
+edit	LEXSEQ2.ASM	sub	^(\tWWWL\tANI_IF_BUTCOUNT_LT,KICKB_COUNT,[12],#(missedb|failed))$	\tWL\tANI_CODE,easy_sync_kick\n\1
+# A move started with another button than in the original repeats on the button it is started with: presses of it
+# count as presses of the original button too (easy_alias, EASYMOVES.ASM), in count_button_presses.
+edit	WRESTLE.ASM	sub	{3}^\tcalla\twres_get_but_val_down$	\tcalla\twres_get_but_val_down\n\tcalla\teasy_alias_mask

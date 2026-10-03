@@ -1,0 +1,9 @@
+# Doink's pie: the projectile (doink_pie in SPECIAL.ASM, piesplat_anim) and the throw's place in his punch
+# (a commented out ANI_SNOT in DNKSEQ2.ASM) are in the original, but nothing starts it. This gives him
+# a secret move: Down, Down + kick, that throws it. Its splat is in src/wolf/core.gen.txt (projectile id 4).
+srcdir asm
+module DOINKPIE
+edit	DOINK.ASM	after	^\t\.long\t#earslap$	\t.long\tdnk_pie_rec
+# the pie hits for real (id 4, the pie splat) and flies as a pie (PIE01-04) instead of the bat frames pie_anim has
+edit	SPECIAL.ASM	after	^ SUBR\tdoink_pie$	\tmovk\t4,a0\n\tmove\ta0,*a13(SP_ID)
+edit	SPECIAL.ASM	sub	^\tmovi\tpie_anim,a0$	\tmovi\tdnk_pie_flight,a0

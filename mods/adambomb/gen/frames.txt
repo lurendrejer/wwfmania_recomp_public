@@ -1,0 +1,77 @@
+# Adam Bomb's frames for Razor Ramon's animation groups (mods/adambomb/README.md).
+#
+# Adam is played with Razor's moves (his own code in orig/ADAM.ASM is for an older engine). Every
+# group of Razor frames the game uses gets a copy for Adam, AB<rest of the name> (R4ST4G -> AB4ST4G),
+# with as many frames as Razor's. A line here fills it from one of Adam's own groups in IMG/ADAM.LOD
+# (picked by looking at the frames side by side: the same pose, seen from the same side):
+#
+#   RAZOR  ADAM  [frame frame ...]
+#
+# Without a frame list Razor's frame k becomes Adam's frame round(k * adam_count / razor_count).
+# With one, the n-th number is Adam's frame for Razor's frame n (0: none, Razor has no frame there).
+# "align" (before the list) is for groups where Adam's pictures sit elsewhere around their anchor than
+# Razor's (in the air, falling, lying: up to 50 pixels): his frames get copies (AY...) with the anchor
+# moved so that his body is where Razor's was (the feet where both stand, else the middle of the body).
+# Groups not listed borrow Razor's frames, recoloured to Adam's palette (AZ<rest>, made by mkadam.py).
+
+# standing, walking (legs) and the torso pieces walked over them, turning
+R4ST4G A4ST4J
+R2ST2C A2ST2D
+R4WP5C A4ST4J
+R4LD4A A4ST4J
+R2WL1A A2WL1A
+R2WL2A A2WL2B
+R2WL4B A2WL8B
+R4WL2A A4WL2B
+R4WL4A A4WL4A
+R4WL5A A4WL5B
+R1TR5Z A1TR5Z
+R1TT5Z A1TT5Z
+R2TW2Z A2TW2Z 1 1 1 1
+R4TW4Z A4TW4Z 1 1 2 2
+# running, bouncing off the ropes, rolling
+R3RN3D A3RN3A
+R4BO3Z A3BO3A
+R3RL1B A3RL1A align
+# punches, kicks, pushes
+R2PU3A A2PU3G
+R4PU3A A4PU3B
+R2BC3B A2BC3B
+R4BC3A A4BC3A
+R4UP3C A4UP3A
+R4GH3A A4GH3A
+R4GF3B A4GF3A
+R4KM3A A4KM3C
+R2KM3X A2KM3A
+R4NM3C A4NM3A
+R4MP4D A4MP4B align
+R4PS3A A4PS3A 0 0 3 0 4 5 5 6
+# diving: A3DC3B02 is broken (its pixels are noise)
+R3DC3C A3DC3B align 1 1 3 4 5 6 7 8 8 9
+R3RC3R A3RC3A align 1 2 3 4
+R3MS3Z A3LC3A align
+# blocking, being hit, losing balance, dizzy
+R4BK3D A4BK3C
+R2BK3E A2BK3B
+R2AH2D A2AH2A
+R4AH4C A4AH4C 0 0 2 3 4 4 5 6
+R4AM4B A4AM4B 0 3 4 5 6
+R4AM3X A4AM4B 1 2 3 4 5 6 6 7
+R2AE2A A3AE2A
+R4AE4B A3AE4A
+R4LB4Z A4LB4A
+R4SB4A A4SB4A
+R3BF3A A3BF3A align
+# falling, lying, getting up
+R3FD3B A3FD3B align
+R3AM3D A3CP3A align
+R3AM3X A3CP3D align
+R4MF4B A4PM4A align
+R4PJ4B A3PJ3B align
+R3TD3A A3PD3A align
+R3GU2A A3GU2A align
+R3GU4A A3GU4A align
+# taunts
+R4SW4D A4SW4A 0 0 1 2 3 4 5 5 4 3 1
+R4SW4Z A4SW4A 1 2 3 4
+R4CO4A A4UT3A

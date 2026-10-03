@@ -1,0 +1,5 @@
+# Gravity (mods/moongravity/README.md): every animation change (change_anim_anim, change_anim1a in ANIM.ASM)
+# resets a wrestler's OBJ_GRAVITY to GRAVITY; with the mod on it is `mg_gravity` instead.
+srcdir asm
+module MOONGRAV
+edit	ANIM.ASM	sub	^\tmovi\tGRAVITY,a0\t\t;reset gravity$	\tmovi\tGRAVITY,a0\t\t;reset gravity\n\tmove\t@mg_gravity,a14,L\n\tjrz\t#mgno\n\tmove\ta14,a0\n#mgno

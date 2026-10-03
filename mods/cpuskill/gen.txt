@@ -1,0 +1,5 @@
+# CPU difficulty (mods/cpuskill/README.md): an offset on the drones' final skill (DRONE.ASM
+# drone_calcskill, which adds the game's own difficulty adjustment there).
+srcdir asm
+module CPUSKILL
+edit	DRONE.ASM	after	^\tadd\ta0,a5\t\t\t;\+8 default$	\tmove\t@cpu_skill_add,a14\n\tadd\ta14,a5

@@ -1,0 +1,8 @@
+# Broken record (mods/brokenrecord/README.md): every line is played by announcer_sound or triple_sound
+# (DCSSOUND.ASM), from the announcer queue or directly; with the mod on, every line of the commentators (Vince and Jerry: 0E0h-1FAh and 2B0h up,
+# not Howard Finkel's 1FBh-1FFh or the wrestlers' 200h-2AFh) is replaced by `brec_line`, and the first
+# such line said after the game starts becomes it when it is 0.
+srcdir asm
+module BRECORD
+edit	DCSSOUND.ASM	after	^ SUBR\tannouncer_sound$	\tmove\t@brec_on,a14\n\tjrz\t#brno\n\tcmpi\t0E0h,a0\n\tjrlt\t#brno\n\tcmpi\t1FBh,a0\n\tjrlt\t#brok\n\tcmpi\t2B0h,a0\n\tjrlt\t#brno\n#brok\n\tmove\t@brec_line,a14\n\tjrnz\t#brhave\n\tmove\ta0,@brec_line\n\tjruc\t#brno\n#brhave\n\tmove\ta14,a0\n#brno
+edit	DCSSOUND.ASM	after	^ SUBR\ttriple_sound$	\tmove\t@brec_on,a14\n\tjrz\t#brno\n\tcmpi\t0E0h,a0\n\tjrlt\t#brno\n\tcmpi\t1FBh,a0\n\tjrlt\t#brok\n\tcmpi\t2B0h,a0\n\tjrlt\t#brno\n#brok\n\tmove\t@brec_line,a14\n\tjrnz\t#brhave\n\tmove\ta0,@brec_line\n\tjruc\t#brno\n#brhave\n\tmove\ta14,a0\n#brno

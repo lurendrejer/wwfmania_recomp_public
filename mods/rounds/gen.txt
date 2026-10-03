@@ -1,0 +1,7 @@
+# Wins needed to win a match (mods/rounds/README.md). The game counts rounds won per side and ends the
+# match at two (best of three) in many places. set_winner (LIFEBAR.ASM) is the one place the count grows, so
+# with the mod on it keeps the real count itself and hands the game 1 until the real count reaches
+# `rounds_needed`, then 2: everything else works as if it were best of three.
+srcdir asm
+module ROUNDS
+edit	LIFEBAR.ASM	sub	^#a4ok\tmove\ta4,\*a0$	#a4ok\tmove\t@rounds_needed,a14\n\tjrz\t#rn_done\n\tPUSH\ta5,a6,a7,a8\n\tmove\t*a0,a5\n\tmove\ta4,a6\n\tsub\ta5,a6\n\tmovi\trn_real,a7\n\tcmpi\tp1rounds,a0\n\tjreq\t#rn_side\n\taddk\t10h,a7\n#rn_side\n\tmove\ta5,a5\n\tjrnz\t#rn_have\n\tclr\ta8\n\tmove\ta8,*a7\n#rn_have\n\tmove\t*a7,a8\n\tadd\ta6,a8\n\tcmpi\t2,a6\n\tjrlt\t#rn_inc\n\tmove\ta14,a8\n#rn_inc\n\tmove\ta8,*a7\n\tmovk\t1,a4\n\tcmp\ta14,a8\n\tjrlt\t#rn_out\n\tmovk\t2,a4\n#rn_out\n\tPULL\ta5,a6,a7,a8\n#rn_done\n\tmove\ta4,*a0

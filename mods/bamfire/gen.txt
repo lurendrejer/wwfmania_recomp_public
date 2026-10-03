@@ -1,0 +1,13 @@
+# Bam Bam's fireball: the unused throw (IMG/BAMSPEC.IMG, BAMBOWL) and the fireball
+# projectile that SPECIAL.ASM already has (bam_fireball); nothing in the original
+# starts either of them. Start it with Down, Toward, Punch.
+srcdir asm
+srcdir img
+lod BAMFIRE
+module BAMFIRE
+# the move, in Bam's secret move table
+edit	BAM.ASM	after	^\t\.long\t#napalm$	\t.long\tbam_bowl_rec
+# the fireball hits for real: its own id (3); the splat for it is in src/wolf/core.gen.txt
+edit	SPECIAL.ASM	after	^ SUBR\tbam_fireball$	\tmovk\t3,a0\n\tmove\ta0,*a13(SP_ID)
+# thrown low, along the floor, like a bowling ball (the pie has the same line, first in the file)
+edit	SPECIAL.ASM	sub	{2}\[97,0\]	[24,0]

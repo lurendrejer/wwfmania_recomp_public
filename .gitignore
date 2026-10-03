@@ -1,0 +1,19 @@
+/build*/
+/art/
+__pycache__/
+# sound ROMs and extracted sounds are not part of the repository
+/sounds/
+/roms/
+*.zip
+# made by running the game in the source directory
+/wwf.cmos
+/wwf.cfg
+*.cmos
+/wwf.state
+/wwf.rec
+
+# the original game (tools/fetch_orig.sh puts it in orig/); only the note about it is kept
+/orig/*
+!/orig/README.md
+# made from orig/ by mods/chair/mkchair.py when the build runs
+/mods/chair/asm/CHAIRSEQ.ASM

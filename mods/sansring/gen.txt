@@ -1,0 +1,12 @@
+# Sans ring (mods/sansring/README.md): no ropes at the top and bottom edges, and a wrestler crosses those edges freely.
+# The side ropes and the side climb-out are the game's own. The game's own flag for it (GAME.EQU NO_RING) was never finished (AWARD.ASM, "until we get blimp module").
+srcdir asm
+module SANSRING
+# Crossing the top or bottom edge, walking, running or pushed: instead of the climb-through animation and instead of
+# being stopped at the rope, the wrestler is simply outside (sans_exit, asm/SANSRING.ASM).
+edit	WRESTLE2.ASM	after	^ SUBR\tck_climb_out_top$	\tmove\t@sans_on,a14\n\tjrz\t#sxt\n\tclr\ta0\n\tjauc\tsans_exit\n#sxt
+edit	WRESTLE2.ASM	after	^ SUBR\tck_climb_out_bot$	\tmove\t@sans_on,a14\n\tjrz\t#sxb\n\tmovk\t1,a0\n\tjauc\tsans_exit\n#sxb
+
+# After the climb-out check the game goes on to stop the wrestler at the rope (no movement past it). Once the wrestler is outside, jump past that.
+edit	WRESTLE.ASM	after	^\tcalla\tck_climb_out_top$	\tmove\t@sans_on,a14\n\tjrz\t#sxu\n\tmove\t*a13(INRING),a14\n\tjrnz\t#check_x\n#sxu
+edit	WRESTLE.ASM	after	^\tcalla\tck_climb_out_bot$	\tmove\t@sans_on,a14\n\tjrz\t#sxd\n\tmove\t*a13(INRING),a14\n\tjrnz\t#check_x\n#sxd
