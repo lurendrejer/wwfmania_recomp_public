@@ -283,6 +283,10 @@ int settings_load(settings *s, const char *path)
             s->no_art = atoi(val) != 0;
         } else if (!strcmp(key, "gpu")) {
             s->gpu = atoi(val) != 0;
+        } else if (!strcmp(key, "art_off")) {
+            s->art_off = (int)strtol(val, NULL, 16);
+        } else if (!strcmp(key, "async_compute")) {
+            s->async_compute = atoi(val) != 0;
         } else if (!strcmp(key, "free_play")) {
             s->free_play = atoi(val) != 0;
         } else if (!strcmp(key, "skip_selftest")) {
@@ -391,6 +395,7 @@ int settings_save(const settings *s, const char *path)
             s->crt_aspect, s->scanlines, s->speed);
     fprintf(f, "vol_master=%d\nvol_music=%d\nvol_effects=%d\nvol_crowd=%d\n", s->vol[0], s->vol[1], s->vol[2], s->vol[3]);
     fprintf(f, "skip_selftest=%d\nno_art=%d\ngpu=%d\n", s->skip_selftest, s->no_art, s->gpu);
+    fprintf(f, "async_compute=%d\nart_off=%x\n", s->async_compute, (unsigned)s->art_off);
     fprintf(f, "free_play=%d\n", s->free_play);
     for (int i = 0; i < s->nmods; i++)
         fprintf(f, "mod=%s\n", s->mods[i]);

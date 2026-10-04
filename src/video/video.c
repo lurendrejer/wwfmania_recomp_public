@@ -192,7 +192,9 @@ void video_dma(video *v, const dma_blit *b)
     uint8_t mask = gi->mask;
     const uint32_t *det = NULL;
     int use_hi = 0;
-    if (gi->hi_state == 1 && gi->hi) {
+    /* A sink with hi_ready (async compute) can ask for the original pixels while it makes the override's textures. */
+    if (gi->hi_state == 1 && gi->hi && !gi->hi_off &&
+        (!to_sink(v) || !v->sink->hi_ready || v->sink->hi_ready(v->sink->user, gi))) {
         use_hi = 1;
         k = gi->hi_factor;
         src = gi->hi;

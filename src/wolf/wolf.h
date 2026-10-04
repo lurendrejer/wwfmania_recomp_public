@@ -51,6 +51,7 @@ typedef struct {
     const cat_image *ci;   /* catalog entry whose override loads on first draw */
     char name[16];         /* label, as in imgrom.txt */
     uint8_t background;    /* from a .BDD file */
+    uint8_t layer;         /* art_layer of the image (src/assets/layers.h) */
 } wolf_romimg;
 
 typedef struct gsp_hw {
@@ -61,6 +62,8 @@ typedef struct gsp_hw {
 
     wolf_romimg *imgs;     /* sorted by sag */
     int nimgs;
+    unsigned art_off;      /* art layers whose overrides are switched off (bit per art_layer), see wolf_set_art_layers */
+    int art_off_set;       /* art_off has been applied at least once */
     img_lib bdd[64];       /* background data files (.BDD) */
     char bdd_name[64][32];
     int nbdd;
@@ -183,6 +186,9 @@ typedef struct gsp_hw {
 int wolf_init(wolf *w, const char *gen_dir, const char *img_dir, const char *override_dir,
               int scale, const char *cmos_path, catalog_warn_fn warn);
 void wolf_free(wolf *w);
+/* Switches the overrides of art layers (src/assets/layers.h) off: bit n set = layer n is drawn from the original pixels and
+ * its override is not read. Takes effect at once and can be changed at any time; what is loaded stays in memory. */
+void wolf_set_art_layers(wolf *w, unsigned off);
 
 /* Test: makes the bitmap 512 + 2 * extra pixels wide. The game keeps using x
  * in 0..511, shifted by extra, and its clip window means the whole width.

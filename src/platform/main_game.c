@@ -4,7 +4,7 @@
  *   wwf [--gen DIR] [--img DIR] [--art DIR] [--scale N] [--cmos FILE]
  *       [--sound DIR] [--sound-art DIR] [--mute] [--classic] [--wide N]
  *       [--res WxH] [--zoom Z] [--min-zoom Z] [--config FILE]
- *       [--mod NAME[=N]]... [--free-play] [--list-mods] [--inspect] [--gpu]
+ *       [--mod NAME[=N]]... [--free-play] [--list-mods] [--inspect] [--gpu] [--async-compute]
  *       [--sync-art] [--art-threads N] [--art-prefetch-mb N] [--art-budget-mb N]
  *
  * Defaults: --gen build/gen, --img orig/IMG, --cmos wwf.cmos, --scale 3,
@@ -343,7 +343,16 @@ typedef struct {
     const settings *set;
 } overlays;
 
-static void draw_debug(SDL_Renderer *ren, int w, int h)
+/* The precache's progress, in the top left corner while the art is read into memory and, with GPU drawing, uploaded
+ * to the graphics memory (docs/OPTIONS.md, PRECACHE). The game runs meanwhile; this says why it can be slow. */
+static struct {
+    int on;                    /* still working */
+    int ready_frames;          /* frames left of the "ready" message */
+    int gpu;                   /* the GPU makes textures too */
+    int total, loaded, on_gpu;
+} precache_ui;
+
+static int draw_debug(SDL_Renderer *ren, int w, int h)
 {
     int s = h / 300, lines = 0, chars = 0;
     if (s < 1)
@@ -357,7 +366,7 @@ static void draw_debug(SDL_Renderer *ren, int w, int h)
                 chars = (int)strlen(dbg_text[i]);
         }
     if (!lines)
-        return;
+        return 0;
     SDL_Rect box = {4 * s, 4 * s, (chars * 6 + 4) * s, (lines * 10 + 2) * s};
     (void)w;
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
@@ -366,14 +375,59 @@ static void draw_debug(SDL_Renderer *ren, int w, int h)
     SDL_SetRenderDrawColor(ren, 120, 255, 120, 255);
     for (int i = 0; i < lines; i++)
         font_text(ren, box.x + 2 * s, box.y + (1 + i * 10) * s, s, dbg_text[i]);
+    return box.y + box.h;
+}
+
+static void draw_precache(SDL_Renderer *ren, int w, int h, int y0)
+{
+    char l1[80], l2[80];
+    int s = h / 300;
+    (void)w;
+    if (!precache_ui.on && precache_ui.ready_frames <= 0)
+        return;
+    s = s < 1 ? 1 : s > 3 ? 3 : s;
+    const int total = precache_ui.total > 0 ? precache_ui.total : 1;
+    double frac;
+    if (precache_ui.on) {
+        snprintf(l1, sizeof l1, "PRECACHING HD ART: READ %d OF %d", precache_ui.loaded, precache_ui.total);
+        if (precache_ui.gpu)
+            snprintf(l2, sizeof l2, "ON THE GPU %d OF %d", precache_ui.on_gpu, precache_ui.total);
+        else
+            l2[0] = 0;
+        frac = precache_ui.gpu ? (double)(precache_ui.loaded + precache_ui.on_gpu) / (2.0 * total)
+                               : (double)precache_ui.loaded / total;
+    } else {
+        snprintf(l1, sizeof l1, "HD ART READY");
+        snprintf(l2, sizeof l2, "%d IMAGES%s", precache_ui.loaded, precache_ui.gpu ? " ON THE GPU" : " IN MEMORY");
+        frac = 1.0;
+    }
+    frac = frac < 0 ? 0 : frac > 1 ? 1 : frac;
+    int chars = (int)strlen(l1) > (int)strlen(l2) ? (int)strlen(l1) : (int)strlen(l2);
+    int lines = l2[0] ? 2 : 1;
+    SDL_Rect box = {4 * s, y0 ? y0 + 2 * s : 4 * s, (chars * 6 + 4) * s, (lines * 10 + 8) * s};
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 190);
+    SDL_RenderFillRect(ren, &box);
+    SDL_SetRenderDrawColor(ren, 255, 210, 60, 255);
+    font_text(ren, box.x + 2 * s, box.y + 1 * s, s, l1);
+    if (l2[0])
+        font_text(ren, box.x + 2 * s, box.y + 11 * s, s, l2);
+    SDL_Rect bar = {box.x + 2 * s, box.y + box.h - 5 * s, box.w - 4 * s, 3 * s};   /* the progress bar */
+    SDL_SetRenderDrawColor(ren, 70, 70, 70, 255);
+    SDL_RenderFillRect(ren, &bar);
+    bar.w = (int)(bar.w * frac);
+    SDL_SetRenderDrawColor(ren, 255, 210, 60, 255);
+    SDL_RenderFillRect(ren, &bar);
 }
 
 static void draw_overlays(SDL_Renderer *ren, int w, int h, void *user)
 {
     overlays *o = user;
     inspect_draw(o->in, ren, w, h);
+    int y0 = 0;
     if (o->set && o->set->debug_overlay)
-        draw_debug(ren, w, h);
+        y0 = draw_debug(ren, w, h);
+    draw_precache(ren, w, h, y0);
     if (banner_frames > 0 && banner_text[0]) {
         int s = h / 300, n = (int)strlen(banner_text);
         s = s < 1 ? 1 : s > 3 ? 3 : s;
@@ -392,7 +446,7 @@ int main(int argc, char **argv)
     const char *gen = "build/gen", *img = "orig/IMG", *art = NULL, *cmos = "wwf.cmos";
     const char *sound_dir = "sounds", *sound_art = NULL;
     int free_play_cli = 0;
-    int inspect = 0, gpu_cli = 0;
+    int inspect = 0, gpu_cli = 0, async_cli = 0;
     int scale = 3, mute = 0, classic = 0, nmods = 0, wide = 0, res_w = 0, res_h = 0, scale_given = 0;
     double zoom0 = 1.0, min_zoom = 0.5;
     int min_zoom_given = 0;
@@ -466,6 +520,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--classic")) classic = 1;
         else if (!strcmp(argv[i], "--inspect")) inspect = 1;
         else if (!strcmp(argv[i], "--gpu")) gpu_cli = 1;
+        else if (!strcmp(argv[i], "--async-compute")) async_cli = 1;
         else if (!strcmp(argv[i], "--sync-art")) sync_art = 1;
         else if (!strcmp(argv[i], "--art-threads") && i + 1 < argc) art_threads = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--art-prefetch-mb") && i + 1 < argc) prefetch_mb = atol(argv[++i]);
@@ -483,7 +538,7 @@ int main(int argc, char **argv)
                             "           [--sound DIR] [--sound-art DIR] [--mute] [--classic] [--wide N]\n"
                             "           [--res WxH] [--zoom Z] [--min-zoom Z]\n"
                             "           [--config FILE]\n"
-                            "           [--mod NAME[=N]]... [--free-play] [--list-mods] [--gpu]\n"
+                            "           [--mod NAME[=N]]... [--free-play] [--list-mods] [--gpu] [--async-compute]\n"
                             "           [--sync-art] [--art-threads N] [--art-prefetch-mb N] [--art-budget-mb N]\n");
             return 2;
         }
@@ -514,10 +569,16 @@ int main(int argc, char **argv)
         set.free_play = 1;
     if (gpu_cli)
         set.gpu = 1;
+    if (async_cli)
+        set.async_compute = 1;
 #ifdef __ANDROID__
     if (android_flag("gpu")) {   /* test switch: an empty file "gpu" turns the GPU drawing on (docs/ANDROID.md) */
         SDL_Log("WWF: gpu file found, GPU drawing is on");
         set.gpu = 1;
+    }
+    if (android_flag("asynccompute")) {   /* test switch: an empty file "asynccompute" turns async compute on (docs/ANDROID.md) */
+        SDL_Log("WWF: asynccompute file found, async compute is on");
+        set.async_compute = 1;
     }
 #endif
     if (!zoom_given && set.zoom > 0)
@@ -753,6 +814,10 @@ int main(int argc, char **argv)
             prof = prof || android_flag("gpuprofile");   /* the GPU's own time is logged too (slows the game a little) */
 #endif
             gpu_video_set_profile(sv.gpu, prof);
+            if (set.async_compute) {
+                gpu_video_set_async(sv.gpu, 1, 2.0);
+                printf("async compute: override textures are made from a queue, 2 ms per frame\n");
+            }
         } else {
             fprintf(stderr, "GPU path not used: %s\n", why);
             ALOG("GPU path not used: %s", why);
@@ -790,7 +855,7 @@ int main(int argc, char **argv)
                  "NOT ON THIS DEVICE: IT HAS %d MB RAM AND THE OPTION NEEDS 6144 MB.", ram_mb);
     if (set.precache && !precache_ok)
         lim_add("PRECACHE NOT USED: THIS DEVICE HAS %d MB RAM, IT NEEDS 6144 MB.", ram_mb);
-    int precache_total = 0;
+    int precache_total = 0, precache_active = 0;
     inspector ins;
     inspect_init(&ins, &sv, inspect);
     if (inspect && !wolf_trace_draws(&w, 1))
@@ -869,6 +934,7 @@ int main(int argc, char **argv)
                 lim_add("HD ART IS READ ON THE GAME THREAD: NO WORKER THREADS, SO LOADING CAN CAUSE SHORT PAUSES.");
         }
         if (precache && art && art[0] && have_art) {
+            precache_active = 1;
             if (art_async) {           /* queued in the background, the game does not wait */
                 for (int i = 0; i < w.cat.nimages; i++)
                     if (w.cat.images[i].has_override)
@@ -971,6 +1037,7 @@ int main(int argc, char **argv)
         wolf_set_match_timer(&w, set.no_match_timer);
         wolf_set_flashes(&w, set.no_flash_white, set.no_flash_red);
         wolf_set_hud_spread(&w, classic || !set.hud_spread ? 0 : vis, classic || !set.hud_spread ? 0 : vis_y);
+        wolf_set_art_layers(&w, (unsigned)set.art_off);     /* the F1 menu's HD art layers */
         if (shot_menu >= 0 && shot_file && (long)w.frames >= shot_frame && !mn.open) {
             mn.open = 1;
             mn.page = shot_menu;
@@ -1042,6 +1109,31 @@ int main(int argc, char **argv)
             else
                 gfx_async_poll(art_async);
             wolf_prefetch_tick(&w);
+        }
+        if (precache_active) {               /* read all the art, and with the GPU make its textures: show how far it is */
+            int tot = 0, ld = 0, up = 0;
+            if (sv.gpu) {
+                gpu_video_precache(sv.gpu, w.gc.images, w.cat.nimages, 3.0, &tot, &ld, &up);
+            } else {
+                for (int i = 0; i < w.cat.nimages; i++)
+                    if (w.gc.images[i].entry && w.gc.images[i].entry->has_override && !w.gc.images[i].hi_off) {
+                        tot++;
+                        ld += w.gc.images[i].hi_state == 1 && w.gc.images[i].hi;
+                    }
+                up = ld;
+            }
+            precache_ui.on = 1;
+            precache_ui.gpu = sv.gpu != NULL;
+            precache_ui.total = tot;
+            precache_ui.loaded = ld;
+            precache_ui.on_gpu = up;
+            if (w.gc.npending == 0 && w.gc.plan_n == 0 && up == ld) {     /* everything that will be read is read and uploaded */
+                precache_active = 0;
+                precache_ui.on = 0;
+                precache_ui.ready_frames = 240;
+            }
+        } else if (precache_ui.ready_frames > 0) {
+            precache_ui.ready_frames--;
         }
         if (!wolf_frame(&w)) {
             uint32_t off = 0;

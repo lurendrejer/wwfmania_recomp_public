@@ -13,6 +13,7 @@
 
 #include "../src/assets/catalog.h"
 #include "../src/assets/img.h"
+#include "../src/assets/layers.h"
 #include "../src/assets/lod.h"
 #include "../src/util/fsutil.h"
 
@@ -283,6 +284,33 @@ static void test_original(const char *imgdir)
     }
     ci = catalog_find(&cat, "FON151"); /* v0 library via MAIN.LOD */
     CHECK(ci != NULL && catalog_image(&cat, ci)->width == 6);
+
+    /* the art layers (src/assets/layers.h): every image has one; counts pinned to the vendored commit */
+    static const int layer_count[ART_LAYER_COUNT] = {642, 681, 632, 627, 684, 719, 669, 669, 91, 123, 137, 1018, 941, 433, 19, 0};
+    int by_layer[ART_LAYER_COUNT] = {0};
+    for (int i = 0; i < cat.nimages; i++) {
+        art_layer l = art_layer_of_image(&cat, &cat.images[i]);
+        CHECK(l >= 0 && l < ART_LAYER_COUNT);
+        if (l >= 0 && l < ART_LAYER_COUNT)
+            by_layer[l]++;
+    }
+    for (int l = 0; l < ART_LAYER_COUNT; l++) {
+        if (by_layer[l] != layer_count[l])
+            fprintf(stderr, "layer %s: %d images, expected %d\n", art_layer_folder((art_layer)l), by_layer[l], layer_count[l]);
+        CHECK(by_layer[l] == layer_count[l]);
+    }
+    ci = catalog_find(&cat, "D4BK3A06");               /* DNK_HIT.IMG, from DOINK.LOD */
+    CHECK(ci && art_layer_of_image(&cat, ci) == ART_DOINK);
+    ci = catalog_find(&cat, "Y2ST2Z02");               /* YOK_WLK.IMG */
+    CHECK(ci && art_layer_of_image(&cat, ci) == ART_YOKOZUNA);
+    CHECK(art_layer_of_lib(&cat, "crowd.img", 0) == ART_CROWD);
+    CHECK(art_layer_of_lib(&cat, "NEWRING.BDD", 1) == ART_BACKGROUNDS);
+    CHECK(art_layer_of_lib(&cat, "SOMETHING.IMG", 0) == ART_OTHER);
+    for (int a = 0; a < ART_LAYER_COUNT; a++) {
+        CHECK(art_layer_folder((art_layer)a)[0] && art_layer_title((art_layer)a)[0]);
+        for (int b = a + 1; b < ART_LAYER_COUNT; b++)
+            CHECK(strcmp(art_layer_folder((art_layer)a), art_layer_folder((art_layer)b)) != 0);
+    }
     catalog_close(&cat);
 }
 

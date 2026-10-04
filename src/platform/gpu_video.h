@@ -51,6 +51,18 @@ void gpu_video_log(const char *fmt, ...);
  * list and the present pass and the GPU's own time is added (this slows the game a little: a test aid). */
 void gpu_video_stats(gpu_video *g, char *out, size_t n);
 void gpu_video_set_profile(gpu_video *g, int on);
+/* Async compute (off by default; the GPU path behaves as before without it). The textures of an override are not made
+ * the first time the game draws the image, in the middle of the frame, but from a queue: `budget_ms` of work per
+ * frame (at least one image), before the picture is drawn. Until an image's textures are there the game draws it from
+ * the original pixels, as it does while the art is being read from disk. The work stays on the thread that owns the GL
+ * context; what changes is that it is spread over frames and never lands in one. 0 or less budget = 2 ms. */
+void gpu_video_set_async(gpu_video *g, int on, double budget_ms);
+/* Precache: makes the textures of the loaded overrides among imgs[0..n) (gfx_cache.images, the images that have an
+ * override) that are not on the GPU yet, for about `budget_ms` of work (at least one image when there is one). Meant to be
+ * called every frame while the art is being read. Reports the number of images with an override (`total`), of those
+ * loaded into memory (`loaded`) and of those with their textures on the GPU (`on_gpu`, which counts what cannot be a
+ * texture too, see sink_blit_raw). Used with or without async compute. */
+void gpu_video_precache(gpu_video *g, gfx_image *imgs, int n, double budget_ms, int *total, int *loaded, int *on_gpu);
 /* Frees the GPU's textures for the override of these images (gfx_cache_evict dropped them on the CPU). */
 void gpu_video_release_images(gpu_video *g, gfx_image **imgs, int n);
 

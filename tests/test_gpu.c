@@ -11,6 +11,8 @@
  *     bit with video.c on the CPU: framebuffer, detail plane and converted picture, at render scales 1 to 4.
  *  2. The whole present path (sdl_video_present with and without the GPU, with zoom, aspect, scanlines and
  *     smoothing): the pictures read back from the renderer must be identical.
+ *  3. Async compute: the first frame draws an override from the original pixels, the next one from the override,
+ *     and both equal the CPU path. The precache (gpu_video_precache) makes the textures first: the override at once.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -244,11 +246,158 @@ static void present_tests(void)
     }
 }
 
+/* ---- async compute -------------------------------------------------------------------------- */
+
+static gfx_image *async_imgs;     /* the two images of async_scene, for the precache test */
+
+/* Two images with an override at 2x (one with detail words). `ov` = 1: the override is loaded, 0: the image has none. */
+static void async_scene(video *v, int ov)
+{
+    enum { W = 40, H = 30, K = 2 };
+    static uint8_t pix[2][W * H], hi[2][W * H * K * K];
+    static uint32_t det[W * H * K * K];
+    static img_image im[2];
+    static gfx_image gi[2];
+    static cat_image ci[2];
+    static int made;
+    unsigned s = 31337u;
+    for (int i = 0; i < 2 && !made; i++) {   /* once: the images keep what the sink made for them */
+        for (int k = 0; k < W * H; k++)
+            pix[i][k] = (lcg(&s) & 3) == 0 ? 0 : (uint8_t)(lcg(&s) >> 4);
+        for (int k = 0; k < W * H * K * K; k++)
+            hi[i][k] = (lcg(&s) & 3) == 0 ? 0 : (uint8_t)(lcg(&s) >> 4);
+        memset(&im[i], 0, sizeof im[i]);
+        im[i].width = W;
+        im[i].height = H;
+        im[i].stride = W;
+        im[i].palette = IMG_NONE;
+        im[i].pixels = pix[i];
+        gfx_image_from_img(&gi[i], NULL, &im[i]);
+        ci[i].has_override = 1;
+        gi[i].entry = &ci[i];
+        gi[i].hi = hi[i];
+        gi[i].hi_factor = K;
+        gi[i].hi_detail = NULL;
+        if (i == 1) {
+            for (int k = 0; k < W * H * K * K; k++) {
+                unsigned r = lcg(&s);
+                det[k] = hi[i][k] && (r & 3) == 0 ? GFX_DETAIL_PACK(r >> 4, r >> 8, r >> 12, 1 + (r >> 16) % 250) : 0;
+            }
+            gi[i].hi_detail = det;
+        }
+    }
+    made = 1;
+    async_imgs = gi;
+    for (int i = 0; i < 2; i++)
+        gi[i].hi_state = ov ? 1 : -1;
+    s = 424242u;
+    for (int i = 0; i < VIDEO_COLORS; i++)
+        v->colram[i] = (uint16_t)(lcg(&s) & 0x7FFF);
+    video_clear(v, 0);
+    for (int n = 0; n < 60; n++) {
+        dma_blit b;
+        memset(&b, 0, sizeof b);
+        b.image = &gi[n & 1];
+        b.x = (int)(lcg(&s) % 400);
+        b.y = (int)(lcg(&s) % 230);
+        b.ctrl = (uint16_t)(lcg(&s) & 15);
+        if (lcg(&s) % 3 == 0)
+            b.ctrl |= DMA_FLIPH;
+        b.pal = (uint16_t)(lcg(&s) & 0x7F00);
+        b.color = (uint16_t)lcg(&s);
+        b.scale_x = n % 3 == 0 ? 0x155 : 0x100;
+        b.scale_y = n % 5 == 0 ? 0xC0 : 0x100;
+        video_dma(v, &b);
+    }
+}
+
+/* Two frames of the same scene; with `async` the GPU path makes the textures of the overrides from a queue. */
+static int async_frames(int gpu, int async, int ov, int precache, grab *f1, grab *f2)
+{
+    sdl_video sv;
+    video v;
+    char why[300];
+    sdl_video_request_gpu(gpu);
+    video_init_bitmap(&v, 2, 440, 270);
+    if (!sdl_video_open(&sv, "test_gpu", &v)) {
+        video_free(&v);
+        return 0;
+    }
+    if (gpu && !sdl_video_attach_gpu(&sv, &v, why, sizeof why)) {
+        fprintf(stderr, "no GPU path: %s\n", why);
+        sdl_video_close(&sv);
+        video_free(&v);
+        return 0;
+    }
+    if (async && sv.gpu)
+        gpu_video_set_async(sv.gpu, 1, 2.0);
+    sv.base_w = VIDEO_W;
+    sv.base_h = VIDEO_H;
+    sdl_video_present(&sv, &v);            /* hands the picture to the GPU: until then the CPU draws */
+    if (precache && sv.gpu) {              /* the precache makes the textures before anything is drawn */
+        int tot = 0, ld = 0, up = 0, calls = 0;
+        async_scene(&v, ov);               /* only makes the images known */
+        gpu_video_precache(sv.gpu, async_imgs, 2, 0.0, &tot, &ld, &up);   /* no budget: one image per call */
+        CHECK(tot == 2 && ld == 2 && up == 1);
+        while (up < ld && calls++ < 5)
+            gpu_video_precache(sv.gpu, async_imgs, 2, 0.0, &tot, &ld, &up);
+        CHECK(up == 2);
+        gpu_video_precache(sv.gpu, async_imgs, 2, 0.0, &tot, &ld, &up);    /* nothing left: no change */
+        CHECK(tot == 2 && ld == 2 && up == 2);
+    }
+    sv.overlay = grab_overlay;
+    sv.overlay_user = f1;
+    async_scene(&v, ov);
+    sdl_video_present(&sv, &v);
+    sv.overlay_user = f2;
+    async_scene(&v, ov);
+    sdl_video_present(&sv, &v);
+    sdl_video_close(&sv);
+    video_free(&v);
+    return f1->px && f2->px;
+}
+
+static size_t grab_diff(const grab *a, const grab *b)
+{
+    if (!a->px || !b->px || a->w != b->w || a->h != b->h)
+        return (size_t)-1;
+    size_t d = 0;
+    for (size_t i = 0; i < (size_t)a->w * a->h; i++)
+        d += a->px[i] != b->px[i];
+    return d;
+}
+
+/* With async compute the first frame uses the original pixels (as for an image without an override), the second
+ * the override, and each equals what the CPU path draws; without it the first frame already has the override. */
+static void async_tests(void)
+{
+    grab lo1 = {NULL, 0, 0}, lo2 = {NULL, 0, 0}, hd1 = {NULL, 0, 0}, hd2 = {NULL, 0, 0};
+    grab a1 = {NULL, 0, 0}, a2 = {NULL, 0, 0}, s1 = {NULL, 0, 0}, s2 = {NULL, 0, 0};
+    grab p1 = {NULL, 0, 0}, p2 = {NULL, 0, 0};
+    int ok = async_frames(0, 0, 0, 0, &lo1, &lo2) && async_frames(0, 0, 1, 0, &hd1, &hd2) &&
+             async_frames(1, 1, 1, 0, &a1, &a2) && async_frames(1, 0, 1, 0, &s1, &s2) &&
+             async_frames(1, 1, 1, 1, &p1, &p2);
+    CHECK(ok);
+    if (!ok)
+        return;
+    CHECK(grab_diff(&lo1, &hd1) > 0);            /* the scene does show the override */
+    CHECK(grab_diff(&a1, &lo1) == 0);            /* async, first frame: the original pixels */
+    CHECK(grab_diff(&a2, &hd2) == 0);            /* async, second frame: the override */
+    CHECK(grab_diff(&s1, &hd1) == 0);            /* not async: the override at once, as before */
+    CHECK(grab_diff(&s2, &hd2) == 0);
+    CHECK(grab_diff(&p1, &hd1) == 0);            /* precached: the override at once, even with async compute */
+    CHECK(grab_diff(&p2, &hd2) == 0);
+    free(p1.px); free(p2.px);
+    free(lo1.px); free(lo2.px); free(hd1.px); free(hd2.px);
+    free(a1.px); free(a2.px); free(s1.px); free(s2.px);
+}
+
 int main(void)
 {
     SDL_setenv("SDL_AUDIODRIVER", "dummy", 0);
     selftests();
     present_tests();
+    async_tests();
     if (failures) {
         fprintf(stderr, "test_gpu: %d failure(s)\n", failures);
         return 1;

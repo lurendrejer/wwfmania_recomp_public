@@ -18,6 +18,10 @@ both axes, so the anchor point (anix, aniy) * k still lines up.
   upscale.py SRC_DIR OUT_DIR LABEL [LABEL ...] [--scale 2]
 
 Python 3, standard library only.
+
+With --layers the images go into one folder per art layer, and with --zip DIR they are also packed into one zip per layer
+(wrestlers_undertaker.zip, hud.zip, ...), each holding its layer folder: the form the game reads a layered set in
+(docs/ASSET_OVERRIDES.md, "Layers").
 """
 import argparse
 import os
@@ -25,6 +29,8 @@ import re
 import struct
 import sys
 import zlib
+
+import art_layers as al
 
 PNG_SIG = b"\x89PNG\r\n\x1a\n"
 
@@ -192,7 +198,9 @@ def main():
     ap.add_argument("src")
     ap.add_argument("out")
     ap.add_argument("labels", nargs="*")
+    al.add_arguments(ap)
     a = ap.parse_args()
+    layout = al.Layout(a)
 
     labels = list(a.labels)
     if a.lod:
@@ -214,9 +222,10 @@ def main():
             continue
         w, h, rows, chunks = read_png(src)
         w2, h2, rows2 = upscale(w, h, rows, a.scale)
-        write_png(os.path.join(a.out, lab + ".png"), w2, h2, rows2, chunks)
+        write_png(layout.path(a.out, lab), w2, h2, rows2, chunks)
         done += 1
     print("upscaled %d images by %dx into %s (%d missing)" % (done, a.scale, a.out, missing))
+    layout.finish(a.out)
 
 
 if __name__ == "__main__":

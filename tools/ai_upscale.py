@@ -45,6 +45,7 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import upscale as ix  # noqa: E402  index-preserving upscaler and PNG io
+import art_layers as al  # noqa: E402  art layers: folders and zips
 
 WEIGHTS_URL = ("https://github.com/xinntao/Real-ESRGAN/releases/download/"
                "v0.2.5.0/realesr-animevideov3.pth")
@@ -224,7 +225,9 @@ def main():
     ap.add_argument("src")
     ap.add_argument("out")
     ap.add_argument("labels", nargs="*")
+    al.add_arguments(ap)
     a = ap.parse_args()
+    layout = al.Layout(a)
 
     labels = list(a.labels)
     for lod in a.lod:
@@ -246,7 +249,7 @@ def main():
         if not os.path.exists(src):
             print("skip (not in source dir): " + lab, file=sys.stderr)
             continue
-        dst = os.path.join(a.out, lab + ".png")
+        dst = layout.path(a.out, lab)
         if a.skip_existing and os.path.exists(dst):
             continue
         process(src, dst, a.scale, model, a.truecolor)
@@ -254,6 +257,7 @@ def main():
         if n % 25 == 0:
             print("%d/%d" % (n, len(labels)), file=sys.stderr)
     print("wrote %d images (%dx) into %s" % (n, a.scale, a.out))
+    layout.finish(a.out)
 
 
 if __name__ == "__main__":

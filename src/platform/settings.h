@@ -51,6 +51,8 @@ typedef struct {
     int render_scale;    /* render scale (framebuffer pixels per game pixel), 0 = automatic; takes effect at start */
     int no_art;          /* the high-resolution art is left out (takes effect at start) */
     int gpu;             /* sprite drawing and the palette lookup on the GPU (OpenGL ES 2; takes effect at start) */
+    int art_off;         /* art layers whose HD art is switched off, one bit per art_layer (src/assets/layers.h); takes effect at once */
+    int async_compute;   /* with gpu: override textures are made a few ms per frame from a queue (gpu_video_set_async; at start) */
     int speed;           /* game speed in percent (100 = the arcade's 54.7 frames/s) */
     int vol[4];          /* percent: master, music, effects, crowd (default 100) */
     int hud_spread;      /* keep the HUD at the edges of a wide view (default on) */

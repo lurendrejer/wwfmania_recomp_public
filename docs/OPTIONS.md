@@ -144,17 +144,27 @@ mods on (a mod that acts on the game changes what happens).
 ## Display page (F1): size, art, GPU, precache and limits
 
 The page DISPLAY holds everything about how the picture is made: smoothing, scaling, speed, the dynamic zoom,
-WINDOW SIZE, RENDER SCALE, HD ART and GPU DRAWING (these four used to be on the MODS page), DEBUG INFO, PRECACHE and
+WINDOW SIZE, RENDER SCALE, HD ART, GPU DRAWING and ASYNC COMPUTE (the first four used to be on the MODS page), DEBUG INFO, PRECACHE and
 LIMITS (DEBUG INFO is on the DEBUG page). WINDOW SIZE, RENDER SCALE, HD ART, GPU DRAWING and PRECACHE take effect after APPLY AND RESTART.
 
 - **DEBUG INFO** (`debug_overlay` in wwf.cfg) puts a few lines on the screen: frames per second and where the time goes
   (the game, the drawing), the bitmap size and render scale, whether the GPU draws or is paused, the HD art in memory
   and, on Android, the system's free memory.
+- **ASYNC COMPUTE** (`async_compute=1`, `--async-compute`) with GPU DRAWING: the GPU textures of the HD art are made a few
+  milliseconds per frame from a queue, not in the middle of a frame the first time an image is drawn. Until an image is
+  ready it shows the original picture. Takes effect after APPLY AND RESTART; see docs/VIDEO.md, "Async compute".
+- **HD ART LAYERS** (`art_off=` in wwf.cfg) opens a list of the parts of the game whose HD art can be switched on and off one at a
+  time: the eight wrestlers, mugshots, crowd, menu screens, HUD and fonts, effects, ring and props, other, backgrounds. Takes
+  effect at once (from the next picture after the menu closes). See docs/ASSET_OVERRIDES.md, "Layers".
 - **PRECACHE** (`precache=1`) reads all HD art and all sounds at start and keeps them, instead of when they are first
   needed. It is used only where there is room: not on Android, and on a PC only with at least 6144 MB of RAM
   (`SDL_GetSystemRAM`); elsewhere the line says "(NOT HERE)" and LIMITS says why. The art is queued for the worker
   threads in the background (the game does not wait); the sounds are read before the first frame. Within 60 percent of the
   RAM; if that is not enough the rest is read when needed and LIMITS says so.
+  With GPU DRAWING the precache also makes the GPU textures of every image it has read (about 3 ms of work per frame,
+  `gpu_video_precache`), so the first time something is drawn there is nothing to upload. While it works the game runs and a box in
+  the top left corner (under DEBUG INFO, if that is on) says `PRECACHING HD ART: READ n OF m`, `ON THE GPU n OF m`, with a
+  progress bar; `HD ART READY` shows for a few seconds when it is done. Images the memory budget left out are read when drawn, as before.
 - **LIMITS** lists what the game had to limit on this device (left/right shows the next): the bitmap capped at 16 Mpixel
   on Android (the dynamic zoom's far-out limit gives way), a render scale lowered because the bitmap would be too big, the
   HD art kept within a memory budget (and how many images were freed), low system memory, GPU drawing that could not be

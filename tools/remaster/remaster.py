@@ -4,7 +4,7 @@
     python3 tools/remaster/remaster.py prepare                 # export every image the game draws -> art/remaster/src
     python3 tools/remaster/remaster.py run --only doink --limit 20   # a first try
     python3 tools/remaster/remaster.py run                     # everything (resumes: done images are skipped)
-    python3 tools/remaster/remaster.py finish                  # check, and write art/hd/remaster_partNN.zip
+    python3 tools/remaster/remaster.py finish                  # check, and write art/hd/remaster_<layer>.zip (--flat: remaster_partNN.zip)
 
 `run` sends each image to ComfyUI (http://127.0.0.1:8188) through the workflow in sdxl_esrgan_tile.json: an upscale
 model (Real-ESRGAN) first enlarges it 4x without pixel steps or blur, then an SDXL checkpoint redraws it at about 1024
@@ -36,6 +36,8 @@ from PIL import Image, ImageFilter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+import art_layers as al  # noqa: E402  art layers: the zips of `finish`
 sys.path.insert(0, os.path.join(ROOT, "tools", "gsp"))
 from imglib import ImgLib  # noqa: E402
 K = 4
@@ -470,21 +472,29 @@ def cmd_finish(a):
     for p in problems:
         print(p)
     os.makedirs(a.dest, exist_ok=True)
-    part, size, z = 0, 0, None
-    for f in ok:
-        p = os.path.join(out_dir, f)
-        n = os.path.getsize(p)
-        if z is None or size + n > 900 * 1024 * 1024:
-            if z:
-                z.close()
-            part += 1
-            size = 0
-            z = zipfile.ZipFile(os.path.join(a.dest, f"{a.name}_part{part:02d}.zip"), "w", zipfile.ZIP_STORED)
-        z.write(p, f)
-        size += n
-    if z:
-        z.close()
-    print(f"{len(ok)} images packed into {part} zip file(s) in {a.dest} ({a.name}_partNN.zip); "
+    if a.flat:        # the old form: parts of a flat list, no layers
+        part, size, z = 0, 0, None
+        for f in ok:
+            p = os.path.join(out_dir, f)
+            n = os.path.getsize(p)
+            if z is None or size + n > 900 * 1024 * 1024:
+                if z:
+                    z.close()
+                part += 1
+                size = 0
+                z = zipfile.ZipFile(os.path.join(a.dest, f"{a.name}_part{part:02d}.zip"), "w", zipfile.ZIP_STORED)
+            z.write(p, f)
+            size += n
+        if z:
+            z.close()
+        print(f"{len(ok)} images packed into {part} zip file(s) in {a.dest} ({a.name}_partNN.zip); "
+              f"{len(problems)} left out")
+        return
+    # one zip per art layer, each holding its layer folder (docs/ASSET_OVERRIDES.md, "Layers")
+    layers = al.layer_map(a.imgtool, a.img)
+    made = al.pack_files([os.path.join(out_dir, f) for f in ok], a.dest, layers, 900, prefix=f"{a.name}_", report=False)
+    nzip = sum(len(v) for v in made.values())
+    print(f"{len(ok)} images packed into {nzip} zip file(s) in {a.dest} ({a.name}_<layer>.zip, one per art layer); "
           f"{len(problems)} left out")
 
 
@@ -517,9 +527,12 @@ def main():
     p.add_argument("--cfg", type=float, default=5.0)
     p.add_argument("--seed", type=int, default=0, help="added to every animation's seed")
     p.add_argument("--timeout", type=float, default=600)
-    p = sub.add_parser("finish", help="check the results and write stored zips for the game")
+    p = sub.add_parser("finish", help="check the results and write stored zips for the game, one per art layer")
     p.add_argument("--dest", default=os.path.join(ROOT, "art", "hd"))
     p.add_argument("--name", default="remaster")
+    p.add_argument("--flat", action="store_true", help="the old form: remaster_partNN.zip of a flat list, no layers")
+    p.add_argument("--imgtool", default=os.path.join(ROOT, "build", "imgtool"))
+    p.add_argument("--img", default=os.path.join(ROOT, "orig", "IMG"))
     a = ap.parse_args()
     {"prepare": cmd_prepare, "run": cmd_run, "finish": cmd_finish}[a.cmd](a)
 

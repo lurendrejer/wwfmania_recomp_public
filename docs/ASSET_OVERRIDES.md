@@ -89,6 +89,46 @@ each is drawn with to `gen/bddpal.txt` (`tools/gsp/genimg.py`, from the backgrou
 `BGNDPAL.ASM`), so they take true-color overrides like the sprites. Checked: a 4x true-color copy of every arena
 piece gives the same picture as the original to within 1 per colour channel, and a grey copy shows grey.
 
+## Layers: switching parts of the HD art on and off, and keeping them in folders
+
+Every image belongs to one **art layer** (`src/assets/layers.c`): the 8 wrestlers (Bret, Razor, Undertaker, Yokozuna,
+Shawn, Bam Bam, Doink, Lex), mugshots and names, the crowd, menu screens, HUD and fonts, effects, ring and props, other,
+and the arena backgrounds. A wrestler's layer is the LOD script that selected the image (`BRET.LOD`, ...); for the rest
+it is the IMG library the image comes from, listed by name in `layers.c`; the backgrounds (`<BDD>_<n>.png`) are their
+own layer. The split of the non-wrestler libraries is a judgment from the image labels, not something the game's data says;
+`./build/imgtool layers orig/IMG` prints how many catalog images each layer has and `imgtool layers orig/IMG list` every label
+with its layer (tab separated). Counts at the vendored commit: wrestlers 642 / 681 / 632 / 627 / 684 / 719 / 669 / 669, mugshots
+91, crowd 123, screens 137, HUD 1018, effects 941, ring 433, other 19 (8085 in all).
+
+- **In the game:** F1, DISPLAY, HD ART LAYERS lists the layers with ON/OFF (Enter or left/right toggles one, ALL ON and ALL
+  OFF do the rest). An image of a layer that is OFF is drawn from its original pixels, as without an override, and its
+  override is not read from disk. It takes effect from the next picture after the menu closes and needs no restart. What is
+  already loaded stays in memory (and on the GPU), so switching a layer back on is instant. SAVE SETTINGS keeps the choice
+  (`art_off=<hex bit mask, bit n = layer n>` in `wwf.cfg`). The precache and its progress box leave OFF layers out.
+- **In the art set:** a layered set is **zips, one per layer, each holding its layer folder** (`wrestlers_undertaker.zip` holds
+  `wrestlers/undertaker/<LABEL>.png`, `hud.zip` holds `hud/...`, ...). The game reads a zip at any folder depth, only the file
+  name counts, and a folder holding such zips (or `--art` pointing at one) is a normal override source. Loose files in sub
+  folders are **not** read (a loose folder is listed one level only), so a layered folder of loose files is for editing and has
+  to be zipped or flattened for the game; `imgtool catalog orig/IMG <dir>` shows how many overrides the game finds in it.
+- **The tools write it directly.** `tools/upscale.py` and `tools/ai_upscale.py` take `--layers` (write `<out>/<layer>/<LABEL>.png`)
+  and `--zip DIR` (also pack the result into the layer zips in DIR); `tools/remaster/remaster.py finish` now writes
+  `remaster_<layer>.zip` (one per layer; `--flat` gives the old `remaster_partNN.zip`). A zip is split above `--max-zip-mb`
+  (900; the game does not read zips of 2 GB or more). `--imgtool` and `--img` say where to get the layers (defaults
+  `build/imgtool`, `orig/IMG`; the build needs the `layers` command). The grouping itself comes from `imgtool layers`, so
+  the C code is the one place that has it (`tools/art_layers.py`).
+- **A set that exists already:** `tools/art_pack.py` packs a flat folder (any depth) after the fact and never changes it:
+
+      python3 tools/art_pack.py art/remaster/out art/layers            # art/layers/wrestlers_undertaker.zip, hud.zip, ...
+      python3 tools/art_pack.py art/hd art/layers --folders [--move]   # loose layer folders, to edit (--move moves the files)
+
+  Names that are not in the catalog but look like `<BDD>_<n>` go to `backgrounds`, anything else to `other` with a warning.
+  Do not `--move` the output of a conversion that is still running and resumes from it (`remaster.py run` skips what is
+  in `out/`: moved files would be made again).
+  Checked: `upscale.py --layers --zip` on the Undertaker (632 images into `wrestlers_undertaker.zip`, all 632 found by
+  `imgtool catalog`), and `art_pack.py` on 7122 images of a running remaster (19 zips, 6919 found in the catalog, the rest
+  background pieces). Not checked: the game drawing from such zips (the reading code is the one that already reads zips at any
+  depth, `tests/test_video.c`), an 8000 image set, Android.
+
 ## Loading while playing (`src/platform/gfx_async.c`)
 
 Overrides are read when the game first draws an image, not at start-up (only the background pieces, which the game

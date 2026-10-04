@@ -312,6 +312,16 @@ static void test_dma(void)
     CHECK(px(&v, 3, 3) == 0x0501 && px(&v, 4, 3) == 0x0502 && px(&v, 3, 4) == 0x050A);
     CHECK(px(&v, 11, 8) == 0x0500 + 54);
 
+    /* An art layer switched off (hi_off): drawn from the original pixels, as for an image without an override. */
+    gi.hi_off = 1;
+    video_clear(&v, 0);
+    video_dma(&v, &b);
+    CHECK(px(&v, 6, 3) == 0x0501 && px(&v, 8, 5) == 0x0501 && px(&v, 9, 3) == 0x0502 && px(&v, 3, 3) == 0);   /* the scale 3 blocks again */
+    gi.hi_off = 0;
+    video_clear(&v, 0);
+    video_dma(&v, &b);
+    CHECK(px(&v, 3, 3) == 0x0501 && px(&v, 4, 3) == 0x0502 && px(&v, 3, 4) == 0x050A);   /* switched on: the override */
+
     /* k=6 on scale 3: every second override pixel (centers 1, 3, 5, ...). */
     uint8_t hi6[18 * 12];
     for (int y = 0; y < 12; y++)

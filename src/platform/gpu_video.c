@@ -207,6 +207,7 @@ typedef struct {
 } gop;
 
 #define MAX_OPS 8192
+#define ASYNC_QUEUE 512
 
 typedef struct {
     GLuint id;
@@ -252,6 +253,14 @@ struct gpu_video {
     uint32_t rb_tag[8];       /* who caused the read backs of the interval (video.sync_tag), most frequent few */
     long rb_tag_n[8];
     int rb_tags;
+    /* async compute (gpu_video_set_async): the textures of an override are made a few milliseconds per frame, from a
+     * queue, and until one is there its image is drawn from the original pixels */
+    int async;
+    double async_ms;          /* budget per frame (at least one image is made) */
+    gfx_image *aq[ASYNC_QUEUE];
+    int aq_head, aq_n;
+    int pc_cursor;            /* gpu_video_precache: where the next scan starts */
+    long n_async, n_orig_blits;   /* textures made from the queue, blits drawn from the original meanwhile (per interval) */
 };
 
 static double now_ms(void)
@@ -517,6 +526,7 @@ static void free_gl(gpu_video *g, int del)
     g->tw = g->th = g->rb_w = g->rb_h = 0;
     g->pal_valid = 0;
     g->made = 0;
+    g->aq_head = g->aq_n = 0;  /* the images' sink_queued holds the old tag, so they can queue again */
     g->tag = next_tag++;       /* every gfx_image texture of the old objects is void */
 }
 
@@ -1114,6 +1124,121 @@ static int final_pass(gpu_video *g, video *v, GLuint target, int tw, int th, int
     return check_gl(g, "the present pass");
 }
 
+/* ---- async compute --------------------------------------------------------------------------------- */
+
+/* Everything a blit of this override needs is on the GPU (or it cannot be there: too big for a texture, which
+ * sink_blit_raw refuses as it always did). */
+static int hi_textures_ready(const gpu_video *g, const gfx_image *gi)
+{
+    if (gi->sink_owner == g->tag && gi->sink_gen == gi->gen && gi->sink_tex[1] && (!gi->hi_detail || gi->sink_tex[2]))
+        return 1;
+    return gi->img->width * gi->hi_factor > g->max_tex || gi->img->height * gi->hi_factor > g->max_tex;
+}
+
+/* Is everything a blit of this override needs on the GPU? If not, queues the image and says no: video_dma then
+ * records the blit from the original pixels. Only bookkeeping, no GL call (this runs while the game draws). */
+static int sink_hi_ready(void *user, const gfx_image *ci)
+{
+    gpu_video *g = user;
+    gfx_image *gi = (gfx_image *)ci;
+    if (g->failed || hi_textures_ready(g, gi))
+        return 1;
+    if (gi->sink_queued != g->tag && g->aq_n < ASYNC_QUEUE) {
+        g->aq[(g->aq_head + g->aq_n++) % ASYNC_QUEUE] = gi;
+        gi->sink_queued = g->tag;
+    }
+    g->n_orig_blits++;
+    return 0;
+}
+
+void gpu_video_precache(gpu_video *g, gfx_image *imgs, int n, double budget_ms, int *total, int *loaded, int *on_gpu)
+{
+    int tot = 0, ld = 0, up = 0, entered = 0;
+    gl_saved st;
+    double t0 = now_ms();
+    if (!g->failed && n > 0) {
+        for (int k = 0; k < n; k++) {
+            int i = (g->pc_cursor + k) % n;
+            gfx_image *gi = &imgs[i];
+            if (!gi->entry || !gi->entry->has_override || gi->hi_off || gi->hi_state != 1 || !gi->hi ||
+                hi_textures_ready(g, gi))
+                continue;
+            if (!entered) {
+                if (!enter(g, &st))
+                    break;
+                entered = 1;
+                g->gl.ActiveTexture(GL_TEXTURE0);
+            }
+            int tw, th;
+            image_tex(g, gi, 1, &tw, &th);
+            if (gi->hi_detail)
+                image_tex(g, gi, 2, &tw, &th);
+            g->n_async++;
+            g->pc_cursor = (i + 1) % n;
+            if (now_ms() - t0 >= budget_ms)
+                break;
+        }
+        if (entered) {
+            check_gl(g, "making the override textures");
+            leave(g, &st);
+        }
+    }
+    for (int i = 0; i < n; i++) {
+        const gfx_image *gi = &imgs[i];
+        if (!gi->entry || !gi->entry->has_override || gi->hi_off)
+            continue;
+        tot++;
+        if (gi->hi_state == 1 && gi->hi) {
+            ld++;
+            up += g->failed || hi_textures_ready(g, gi);   /* without a GPU there is nothing to wait for */
+        }
+    }
+    *total = tot;
+    *loaded = ld;
+    *on_gpu = up;
+}
+
+/* Makes the textures of queued overrides until the frame's budget is spent (the first one always, so the queue moves).
+ * Runs with the context current, before the picture is drawn. */
+static void async_pump(gpu_video *g)
+{
+    if (!g->async || g->aq_n == 0)
+        return;
+    double t0 = now_ms();
+    while (g->aq_n > 0) {
+        gfx_image *gi = g->aq[g->aq_head];
+        g->aq_head = (g->aq_head + 1) % ASYNC_QUEUE;
+        g->aq_n--;
+        gi->sink_queued = 0;
+        if (gi->hi && gi->hi_state == 1) {      /* it may have been freed again while it waited */
+            int tw, th;
+            image_tex(g, gi, 1, &tw, &th);
+            if (gi->hi_detail)
+                image_tex(g, gi, 2, &tw, &th);
+            g->n_async++;
+        }
+        if (now_ms() - t0 >= g->async_ms)
+            break;
+    }
+    check_gl(g, "making the override textures");
+}
+
+void gpu_video_set_async(gpu_video *g, int on, double budget_ms)
+{
+    if (!g)
+        return;
+    g->async = on != 0;
+    g->async_ms = budget_ms > 0 ? budget_ms : 2.0;
+    g->sink.hi_ready = on ? sink_hi_ready : NULL;
+    if (!on) {
+        while (g->aq_n > 0) {
+            g->aq[g->aq_head]->sink_queued = 0;
+            g->aq_head = (g->aq_head + 1) % ASYNC_QUEUE;
+            g->aq_n--;
+        }
+    }
+}
+
 int gpu_video_render(gpu_video *g, video *v, SDL_Texture *tex, SDL_Rect src)
 {
     gl_saved s;
@@ -1122,6 +1247,12 @@ int gpu_video_render(gpu_video *g, video *v, SDL_Texture *tex, SDL_Rect src)
     double t0 = now_ms();
     if (!enter(g, &s))
         return 0;
+    g->gl.ActiveTexture(GL_TEXTURE0);
+    async_pump(g);
+    if (g->failed) {
+        leave(g, &s);
+        return 0;
+    }
     SDL_QueryTexture(tex, NULL, NULL, &tw, &th);
     g->gl.ActiveTexture(GL_TEXTURE0);
     if (SDL_GL_BindTexture(tex, &fw, &fh) == 0) {
@@ -1260,6 +1391,12 @@ void gpu_video_stats(gpu_video *g, char *out, size_t n)
              "(%ld, %ld KB), pixel reads %ld, readbacks %ld%s",
              g->ms_record, g->n_blit, g->n_fill, g->ms_play, g->n_flush, g->ms_final, g->ms_upload, g->n_upload,
              g->bytes_upload / 1024, g->px_reads, g->readbacks - g->rb_start, "");
+    if (g->async) {
+        size_t l = strlen(out);
+        snprintf(out + l, n - l, ", async compute: %ld textures made from the queue, %ld blits drawn from the original "
+                 "meanwhile, %d waiting", g->n_async, g->n_orig_blits, g->aq_n);
+    }
+    g->n_async = g->n_orig_blits = 0;
     if (g->profile) {
         size_t l = strlen(out);
         snprintf(out + l, n - l, ", GPU busy after play %.0f ms, after final %.0f ms", g->ms_gpu_play, g->ms_gpu_final);

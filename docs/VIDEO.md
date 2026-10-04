@@ -384,6 +384,9 @@ shaders on the same CPU cores: this says nothing about a real GPU, only that the
   hardware's exact stepping may differ by one pixel at the edges.
 - The GPU path is checked only on llvmpipe; see "Not verified" in the GPU path section.
 - Shadows (`M_SHAD`, `PLACE_SHADOWS`) and 3D objects are not modeled yet.
+- Async compute ("Async compute (option)" below): it is checked against the CPU path with llvmpipe only. Whether 2 ms per frame removes the hitches on a
+  real GPU (Mesa radeonsi, Mali, Adreno), whether `glTexImage2D` with `GL_LUMINANCE` is the expensive part (a `GL_R8` texture
+  may be cheaper), and whether a shared GL context on a second thread is worth its risk are all unmeasured.
 
 ## How far apart wrestlers can go
 
@@ -406,3 +409,32 @@ converts as without `--gpu`, and after twenty frames with fewer than 1500 pixel 
 they are (a pause that cannot end would keep the slow CPU drawing), the GPU takes over again (`gpu_video_resume`, one upload). The log says `GPU path: paused ...` and `resumed`. The picture is
 the same before and after (the `gpu` ctest pauses and resumes between frames and compares them bit for bit; screenshots of
 frames 30 to 600 of a fresh start are byte-identical with and without `--gpu`). Unmeasured on a device.
+
+### Async compute (option)
+
+On the GPU path the textures of an HD override (`image_tex` in `gpu_video.c`) are made the first time the game draws the
+image: the pixels are copied and `glTexImage2D` runs, on the game's thread, in the middle of the frame. At render scale 4
+an image is 16 times its original size and a screen needs many of them, so the first minute of play can hitch whenever
+something new is shown (precache reads the art into memory, but it does not make the GPU textures).
+
+`--async-compute` (the `ASYNC COMPUTE` line of the F1 display page, `async_compute=1` in `wwf.cfg`, on Android an empty file
+`asynccompute`; it needs GPU drawing and takes effect at start) moves that work out of the drawing:
+
+- `video_dma` asks the sink (`video_sink.hi_ready`) before it uses an override. If the textures are not on the GPU yet the
+  sink queues the image (`gpu_video.c`, bookkeeping only, no GL call) and `video_dma` records the blit from the original
+  pixels, exactly as for an image without an override or while the art is still being read from disk.
+- At each present, before the picture is drawn, `async_pump` makes the textures of queued images until 2 ms are spent (the
+  first one always, so the queue moves). A few frames later the image shows the override.
+- Off, `hi_ready` is NULL and nothing changes: the GPU path is the code it was. The `gpu` ctest checks the first frame (the
+  original pixels), the second (the override) and the off case against the CPU path bit for bit, at render scale 2 with an
+  indexed and a detail override.
+
+With PRECACHE on, the same textures are made ahead of time for every image the precache has read (`gpu_video_precache`, called
+every frame, 3 ms of work at most, with or without async compute), and a progress box in the top left corner shows how far it
+is; async compute then only matters for what the precache did not cover. The `gpu` ctest checks that a precached override is
+drawn at once, even with async compute on.
+
+It is spreading the work over frames, not a second thread: the SDL renderer's GL context belongs to the game's thread, and
+a shared context or pixel buffers would need a driver and a platform test that was not done (see Open questions). While
+an image waits it is drawn at the original resolution for a few frames (visible as a brief pop-in of sharpness). The stats
+line says how many textures were made from the queue and how many blits were drawn from the original meanwhile.

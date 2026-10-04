@@ -1,5 +1,7 @@
 #include "menu.h"
 
+#include "assets/layers.h"
+
 #include "font.h"
 
 #include <stdio.h>
@@ -141,7 +143,7 @@ static void apply_and_restart(menu *m)
 }
 
 /* page 4: the display options and the speed, as ints in the settings */
-enum { DSP_SMOOTH, DSP_INTEGER, DSP_CRT, DSP_SCAN, DSP_SPEED, DSP_DYN, DSP_DYN_MIN, DSP_DYN_MAX, DSP_HUD, DSP_RES, DSP_SCALE, DSP_ART, DSP_GPU, DSP_PRECACHE, DSP_LIMITS, DSP_COUNT };
+enum { DSP_SMOOTH, DSP_INTEGER, DSP_CRT, DSP_SCAN, DSP_SPEED, DSP_DYN, DSP_DYN_MIN, DSP_DYN_MAX, DSP_HUD, DSP_RES, DSP_SCALE, DSP_ART, DSP_LAYERS, DSP_GPU, DSP_ASYNC, DSP_PRECACHE, DSP_LIMITS, DSP_COUNT };
 #define DSP_APPLY DSP_COUNT            /* then BACK */
 #define DSP_BACK (DSP_COUNT + 1)
 
@@ -157,12 +159,13 @@ static int *dsp_field(settings *s, int i)
     case DSP_DYN_MAX: return &s->dyn_max;
     case DSP_HUD: return &s->hud_spread;
     case DSP_GPU: return &s->gpu;
+    case DSP_ASYNC: return &s->async_compute;
     case DSP_PRECACHE: return &s->precache;
     default: return &s->speed;
     }
 }
 
-static const char *const dsp_names[DSP_COUNT] = {"SMOOTHING", "INTEGER SCALING", "4:3 PIXEL ASPECT", "SCANLINES", "GAME SPEED", "DYNAMIC ZOOM", "  FARTHEST OUT", "  CLOSEST IN", "HUD AT EDGES", "WINDOW SIZE", "RENDER SCALE", "HD ART", "GPU DRAWING", "PRECACHE", "LIMITS"};
+static const char *const dsp_names[DSP_COUNT] = {"SMOOTHING", "INTEGER SCALING", "4:3 PIXEL ASPECT", "SCANLINES", "GAME SPEED", "DYNAMIC ZOOM", "  FARTHEST OUT", "  CLOSEST IN", "HUD AT EDGES", "WINDOW SIZE", "RENDER SCALE", "HD ART", "HD ART LAYERS", "GPU DRAWING", "ASYNC COMPUTE", "PRECACHE", "LIMITS"};
 static const char *const dsp_help[DSP_COUNT] = {
     "SMOOTH (LINEAR) OR SHARP (NEAREST) PIXELS WHEN THE PICTURE IS ENLARGED.",
     "ENLARGE ONLY BY WHOLE NUMBERS, SO EVERY PIXEL IS THE SAME SIZE. THE REST OF THE WINDOW STAYS BLACK.",
@@ -176,7 +179,9 @@ static const char *const dsp_help[DSP_COUNT] = {
     "THE WINDOW'S SIZE IN PIXELS (LEFT/RIGHT). AUTO = THE DESKTOP'S SHAPE. THE VIEW AND THE SHARPNESS FOLLOW THE SIZE. TAKES EFFECT AFTER APPLY AND RESTART.",
     "PICTURE POINTS PER GAME PIXEL (LEFT/RIGHT): AUTO, 1 TO 4. HIGHER = SHARPER HD ART BUT MUCH MORE WORK FOR THE CPU AND MORE MEMORY. TAKES EFFECT AFTER APPLY AND RESTART.",
     "THE HIGH-RESOLUTION ART (ENTER = ON/OFF). OFF = THE ORIGINAL PICTURES, MUCH FASTER ON A SLOW DEVICE. TAKES EFFECT AFTER APPLY AND RESTART.",
+    "SWITCH THE HD ART OF THE WRESTLERS, THE BACKGROUNDS, THE MUGSHOTS AND THE OTHER PARTS OF THE GAME ON AND OFF, ONE AT A TIME (ENTER OPENS THE LIST). THE GAME SHOWS IT FROM THE NEXT PICTURE AFTER THE MENU IS CLOSED.",
     "DRAW THE SPRITES AND LOOK UP THE COLORS ON THE GRAPHICS CHIP (OPENGL ES 2) INSTEAD OF THE CPU (ENTER = ON/OFF). SAME PICTURE; FALLS BACK TO THE CPU IF THE DEVICE CANNOT DO IT. TAKES EFFECT AFTER APPLY AND RESTART.",
+    "WITH GPU DRAWING: MAKE THE HD ART'S GRAPHICS CHIP TEXTURES A LITTLE AT A TIME, EVERY FRAME, INSTEAD OF IN THE MIDDLE OF A FRAME THE FIRST TIME AN IMAGE IS DRAWN. UNTIL AN IMAGE IS READY IT SHOWS THE ORIGINAL PICTURE. REMOVES THE STUTTER AT FIRST USE. TAKES EFFECT AFTER APPLY AND RESTART.",
     "READ ALL HD ART AND SOUNDS AT START, AND KEEP THEM, INSTEAD OF WHEN THEY ARE FIRST NEEDED: NO LOADING DURING THE GAME. NEEDS PLENTY OF RAM. TAKES EFFECT AFTER APPLY AND RESTART.",
     "WHAT THE GAME HAS HAD TO LIMIT ON THIS DEVICE (MEMORY, SIZE). LEFT/RIGHT SHOWS THE NEXT ONE.",
 };
@@ -219,6 +224,8 @@ static int page_lines(const menu *m)
 {
     if (m->page == 0)
         return MAIN_COUNT;
+    if (m->page == 8)
+        return ART_LAYER_COUNT + 3;          /* the layers, ALL ON, ALL OFF, then BACK */
     if (m->page == 4)
         return DSP_COUNT + 2;                /* display and speed, APPLY AND RESTART, then BACK */
     if (m->page == 2)
@@ -338,6 +345,11 @@ int menu_event(menu *m, const SDL_Event *e)
         m->open = 0;
         return 1;
     }
+    if (k == SDLK_ESCAPE && m->page == 8) {
+        m->page = 4;
+        m->sel = DSP_LAYERS;
+        return 1;
+    }
     if (k == SDLK_ESCAPE) {
         m->sel = main_line_of(m->page);
         m->page = 0;
@@ -347,7 +359,10 @@ int menu_event(menu *m, const SDL_Event *e)
         m->sel = (m->sel + n - 1) % n;
     else if (k == SDLK_DOWN)
         m->sel = (m->sel + 1) % n;
-    else if (m->page == 4 && (k == SDLK_LEFT || k == SDLK_RIGHT) && m->sel < DSP_COUNT) {
+    else if (m->page == 8 && (k == SDLK_LEFT || k == SDLK_RIGHT) && m->sel < ART_LAYER_COUNT) {
+        m->set->art_off ^= 1 << m->sel;
+    }
+    else if (m->page == 4 && (k == SDLK_LEFT || k == SDLK_RIGHT) && m->sel < DSP_COUNT && m->sel != DSP_LAYERS) {
         int *f = dsp_field(m->set, m->sel);
         if (m->sel == DSP_DYN_MIN || m->sel == DSP_DYN_MAX) {
             *f += k == SDLK_RIGHT ? 10 : -10;
@@ -434,6 +449,17 @@ int menu_event(menu *m, const SDL_Event *e)
                 m->page = 0;
                 m->sel = MAIN_DEBUG;
             }
+        } else if (m->page == 8) {
+            if (m->sel < ART_LAYER_COUNT) {
+                m->set->art_off ^= 1 << m->sel;
+            } else if (m->sel == ART_LAYER_COUNT) {
+                m->set->art_off = 0;                                /* ALL ON */
+            } else if (m->sel == ART_LAYER_COUNT + 1) {
+                m->set->art_off = (1 << ART_LAYER_COUNT) - 1;       /* ALL OFF */
+            } else {
+                m->page = 4;
+                m->sel = DSP_LAYERS;
+            }
         } else if (m->page == 4) {
             if (m->sel == DSP_APPLY) {
                 apply_and_restart(m);
@@ -452,6 +478,9 @@ int menu_event(menu *m, const SDL_Event *e)
                 m->set->render_scale = 0;
             } else if (m->sel == DSP_ART) {
                 m->set->no_art = !m->set->no_art;
+            } else if (m->sel == DSP_LAYERS) {
+                m->page = 8;
+                m->sel = 0;
             } else if (m->sel == DSP_LIMITS) {
                 if (m->nlimits > 0)
                     m->lim_sel = (m->lim_sel + 1) % m->nlimits;
@@ -590,6 +619,8 @@ void menu_draw(const menu *m, SDL_Renderer *ren, int w, int h)
         list_rows = P3(P3_COUNT);
     if (page_mods(7) + 1 > list_rows)
         list_rows = page_mods(7) + 1;
+    if (ART_LAYER_COUNT + 3 > list_rows)
+        list_rows = ART_LAYER_COUNT + 3;
     if (12 > list_rows)
         list_rows = 12;
     /* The panel must fit the screen: a smaller font first, then a shorter list that scrolls with the selection. */
@@ -619,7 +650,7 @@ void menu_draw(const menu *m, SDL_Renderer *ren, int w, int h)
     char buf[96];
     int x = px + 2 * s * 3, y = py + line;
     SDL_SetRenderDrawColor(ren, 255, 210, 60, 255);
-    font_text(ren, x, y, s, m->page == 0 ? "WWF WRESTLEMANIA - SETTINGS" : m->page == 2 ? "GAME OPTIONS - ENTER = ON/OFF" : m->page == 3 ? "MODS - FROM THE NEXT MATCH" : m->page == 7 ? "TWEAKS - ENTER = ON/OFF, LEFT/RIGHT = VALUE" : m->page == 4 ? "DISPLAY - ENTER = CHANGE" : m->page == 5 ? "VOLUME - LEFT/RIGHT, ENTER = 100%" : m->page == 6 ? "DEBUG - ENTER = CHANGE" : "CONTROLS - ENTER = CHANGE KEY");
+    font_text(ren, x, y, s, m->page == 0 ? "WWF WRESTLEMANIA - SETTINGS" : m->page == 2 ? "GAME OPTIONS - ENTER = ON/OFF" : m->page == 3 ? "MODS - FROM THE NEXT MATCH" : m->page == 7 ? "TWEAKS - ENTER = ON/OFF, LEFT/RIGHT = VALUE" : m->page == 4 ? "DISPLAY - ENTER = CHANGE" : m->page == 8 ? "HD ART LAYERS - ENTER = ON/OFF" : m->page == 5 ? "VOLUME - LEFT/RIGHT, ENTER = 100%" : m->page == 6 ? "DEBUG - ENTER = CHANGE" : "CONTROLS - ENTER = CHANGE KEY");
     y += 2 * line;
 
     int n = page_lines(m), first = 0, vis = n < list_rows ? n : list_rows;
@@ -646,6 +677,15 @@ void menu_draw(const menu *m, SDL_Renderer *ren, int w, int h)
             case MAIN_RESTART: snprintf(buf, sizeof buf, "APPLY AND RESTART"); break;
             default: snprintf(buf, sizeof buf, "CLOSE MENU"); break;
             }
+        } else if (m->page == 8) {
+            if (i < ART_LAYER_COUNT)
+                snprintf(buf, sizeof buf, "%-22s %s", art_layer_title((art_layer)i), (m->set->art_off >> i) & 1 ? "OFF" : "ON");
+            else if (i == ART_LAYER_COUNT)
+                snprintf(buf, sizeof buf, "ALL ON");
+            else if (i == ART_LAYER_COUNT + 1)
+                snprintf(buf, sizeof buf, "ALL OFF");
+            else
+                snprintf(buf, sizeof buf, "BACK");
         } else if (m->page == 4) {
             if (i == DSP_BACK)
                 snprintf(buf, sizeof buf, "BACK");
@@ -666,6 +706,15 @@ void menu_draw(const menu *m, SDL_Renderer *ren, int w, int h)
                     snprintf(buf, sizeof buf, "%-18s < AUTO >", dsp_names[i]);
             } else if (i == DSP_ART)
                 snprintf(buf, sizeof buf, "%-18s %s", dsp_names[i], m->set->no_art ? "OFF" : "ON");
+            else if (i == DSP_LAYERS) {
+                int off = 0;
+                for (int l = 0; l < ART_LAYER_COUNT; l++)
+                    off += (m->set->art_off >> l) & 1;
+                if (off)
+                    snprintf(buf, sizeof buf, "%-18s > %d OF %d OFF", dsp_names[i], off, ART_LAYER_COUNT);
+                else
+                    snprintf(buf, sizeof buf, "%-18s > ALL ON", dsp_names[i]);
+            }
             else if (i == DSP_PRECACHE)
                 snprintf(buf, sizeof buf, "%-18s %s%s", dsp_names[i], m->set->precache ? "ON" : "OFF",
                          m->precache_ok ? "" : "  (NOT HERE)");
@@ -775,6 +824,10 @@ void menu_draw(const menu *m, SDL_Renderer *ren, int w, int h)
             hint = p3_help[m->sel - builtin_count()];
         else if (m->page == 3)
             hint = "SAVES EVERYTHING AND STARTS THE GAME AGAIN. THE MODS AND THE OPTIONS ABOVE ONLY TAKE EFFECT AT START.";
+        else if (m->page == 8)
+            hint = m->sel < ART_LAYER_COUNT
+                       ? "OFF = THE ORIGINAL PICTURES FOR THIS PART OF THE GAME, FROM THE NEXT PICTURE AFTER THE MENU IS CLOSED. HD ART THAT IS LOADED STAYS IN MEMORY. SAVE SETTINGS KEEPS WHAT IS OFF."
+                       : "ALL ON AND ALL OFF SWITCH EVERY PART AT ONCE.";
         else if (m->page == 4 && m->sel < DSP_COUNT) {
             hint = dsp_help[m->sel];
             if (m->sel == DSP_LIMITS)

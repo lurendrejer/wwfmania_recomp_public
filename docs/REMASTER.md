@@ -30,9 +30,12 @@ ignored).
 
    Results go to `art/remaster/out/LABEL.png`. A run can be stopped and started again: images already in `out/` are
    skipped (unless `--redo`).
-3. `finish` checks every result (size, RGBA, alpha 0/255) and packs them as uncompressed zips,
-   `art/hd/remaster_part01.zip` and on, of at most 900 MB each. The game reads them from there when started with
-   `--art art/hd` (other zips and loose PNGs in the folder are used too).
+3. `finish` checks every result (size, RGBA, alpha 0/255) and packs them as uncompressed zips, one per art layer
+   (`art/hd/remaster_wrestlers_undertaker.zip`, `remaster_hud.zip`, ... each holding its layer folder, docs/ASSET_OVERRIDES.md
+   "Layers"; split above 900 MB). The game reads them from there when started with `--art art/hd` (other zips and loose
+   PNGs in the folder are used too). `finish --flat` gives the old `remaster_part01.zip` and on. It needs `build/imgtool` with the
+   `layers` command (rebuild if it says it cannot get the layers). A set made before this can be packed with
+   `tools/art_pack.py art/remaster/out art/hd`, which does not touch `out/`.
 
 Fonts are left out unless asked for (`--fonts`, or `--only` naming them): the model tends to change letters. The
 Robotron and Adam Bomb art is never drawn and is skipped.

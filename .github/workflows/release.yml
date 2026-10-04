@@ -1,0 +1,76 @@
+name: release builds
+
+# Builds the program for Linux, Windows (MinGW cross build), macOS and Android WITHOUT the game data
+# (orig/IMG, sounds/, art/): the data goes in a separate zip. Run by hand from the Actions tab or with
+#   gh workflow run release.yml --ref <branch>
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/jolly-newton-r0bl5v]
+    paths: ['.github/workflows/release.yml']
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake python3 libsdl2-dev
+      - run: tools/build_linux.sh test
+      - run: |
+          rm -rf dist-linux/orig
+          tar -C dist-linux -czf wwf-linux-x86_64.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: wwf-linux-x86_64.tar.gz, retention-days: 1 }
+
+  windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake python3 gcc-mingw-w64-x86-64
+      - run: tools/build_windows.sh
+      - run: |
+          rm -rf dist-windows/orig
+          (cd dist-windows && zip -r ../wwf-windows-x86_64.zip .)
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: wwf-windows-x86_64.zip, retention-days: 1 }
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install cmake sdl2
+      - run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j4
+          ctest --test-dir build --output-on-failure
+      - run: |
+          mkdir dist-macos
+          cp build/wwf dist-macos/
+          cp -R build/gen dist-macos/gen
+          rm -rf dist-macos/gen/c
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec ./wwf --gen gen --img orig/IMG "$@"\n' > dist-macos/wwf.sh
+          chmod +x dist-macos/wwf.sh
+          tar -C dist-macos -czf wwf-macos-$(uname -m).tar.gz .
+      - uses: actions/upload-artifact@v4
+        with: { name: macos, path: "wwf-macos-*.tar.gz", retention-days: 1 }
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: SDK and NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" \
+              "ndk;26.1.10909125" "cmake;3.22.1"
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+      - name: APK without data
+        run: |
+          python3 android/regen_gen.py build/gen
+          sh android/fetch-sdl.sh
+          cd android && ./gradlew assembleRelease -PwwfNoData=1
+      - run: cp android/app/build/outputs/apk/release/app-release.apk wwf-android-arm64.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: wwf-android-arm64.apk, retention-days: 1 }

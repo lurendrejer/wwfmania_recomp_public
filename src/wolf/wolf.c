@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "assets/artsrc.h"
+#include "assets/layers.h"
 #include "assets/png_read.h"
 #include "util/fsutil.h"
 
@@ -959,6 +960,7 @@ static int load_imgrom(wolf *w, const char *gen_dir, const char *img_dir)
         memcpy(r->name, name, nl);
         r->name[nl] = 0;
         r->background = (uint8_t)is_bdd;
+        r->layer = (uint8_t)art_layer_of_lib(&w->cat, lib, is_bdd);
         const img_image *im = &il->images[index];
         /* Use the catalog entry (and its override) when it is this very image. */
         const cat_image *ci = is_bdd ? NULL : catalog_find(&w->cat, name);
@@ -1059,6 +1061,19 @@ int wolf_set_extra_size(wolf *w, int extra, int extra_y)
 int wolf_set_extra_width(wolf *w, int extra)
 {
     return wolf_set_extra_size(w, extra, 0);
+}
+
+void wolf_set_art_layers(wolf *w, unsigned off)
+{
+    if (w->art_off_set && w->art_off == off)
+        return;
+    w->art_off = off;
+    w->art_off_set = 1;
+    for (int i = 0; i < w->cat.nimages; i++)
+        w->gc.images[i].hi_off = (uint8_t)((off >> art_layer_of_image(&w->cat, &w->cat.images[i])) & 1);
+    for (int i = 0; i < w->nimgs; i++)          /* the images without a catalog entry (the backgrounds) */
+        if (!w->imgs[i].ci)
+            w->imgs[i].own.hi_off = (uint8_t)((off >> w->imgs[i].layer) & 1);
 }
 
 void wolf_set_draw_margin_y(wolf *w, int margin)

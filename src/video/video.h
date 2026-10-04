@@ -81,6 +81,10 @@ typedef struct {
      * times per frame by accident (the getup meter reads address 0), and a full read back each time costs more
      * than all the drawing. */
     int (*read_pixel)(void *user, struct video *v, int x, int y);
+    /* Optional (NULL = always ready). Asked for each blit of an image that has an override: 0 means the sink has not
+     * made its textures for the override yet (it has queued that work); video_dma then draws the original pixels of
+     * the image this time, exactly as for an image without override. */
+    int (*hi_ready)(void *user, const gfx_image *image);
 } video_sink;
 
 typedef struct video {

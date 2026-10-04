@@ -27,6 +27,7 @@
 #endif
 
 #include "assets/catalog.h"
+#include "assets/layers.h"
 #include "assets/img.h"
 #include "png_write.h"
 #include "preview.h"
@@ -41,6 +42,7 @@ static void usage(void)
             "  imgtool info    <FILE.IMG>\n"
             "  imgtool export  <FILE.IMG> <outdir> [--indexed]\n"
             "  imgtool catalog <imgdir> [override_dir]\n"
+            "  imgtool layers  <imgdir> [list]\n"
             "  imgtool find    <imgdir> <NAME> [override_dir]\n"
             "  imgtool dump    <imgdir> <outdir> [--indexed]\n"
             "  imgtool render  <imgdir> <NAME> <out.png> [--scale N] [--override DIR]\n"
@@ -186,6 +188,31 @@ static int cmd_catalog(const char *imgdir, const char *override_dir)
     printf("duplicate names:  %d\n", cat.duplicate_names);
     if (override_dir)
         printf("overrides found:  %d\n", overrides);
+    catalog_close(&cat);
+    return 0;
+}
+
+/* The art layers (src/assets/layers.h): how many catalog images each has, or with `list` every label and its layer folder
+ * (tab separated; tools/art_pack.py reads that). */
+static int cmd_layers(const char *imgdir, int list)
+{
+    catalog cat;
+    long count[ART_LAYER_COUNT] = {0};
+    if (!catalog_open(&cat, imgdir, NULL, NULL, NULL, NULL)) {
+        fprintf(stderr, "cannot open catalog in %s\n", imgdir);
+        return 1;
+    }
+    for (int i = 0; i < cat.nimages; i++) {
+        art_layer l = art_layer_of_image(&cat, &cat.images[i]);
+        count[l]++;
+        if (list)
+            printf("%s\t%s\n", cat.images[i].name, art_layer_folder(l));
+    }
+    if (!list) {
+        for (int l = 0; l < ART_LAYER_COUNT; l++)
+            printf("%-22s %-28s %ld%s\n", art_layer_folder((art_layer)l), art_layer_title((art_layer)l), count[l],
+                   l == ART_BACKGROUNDS ? "  (not in the catalog: <BDD>_<n>.png)" : "");
+    }
     catalog_close(&cat);
     return 0;
 }
@@ -354,6 +381,8 @@ int main(int argc, char **argv)
         return cmd_export(argv[2], argv[3], indexed);
     if (strcmp(cmd, "catalog") == 0)
         return cmd_catalog(argv[2], argc > 3 ? argv[3] : NULL);
+    if (strcmp(cmd, "layers") == 0 && argc >= 3)
+        return cmd_layers(argv[2], argc > 3 && strcmp(argv[3], "list") == 0);
     if (strcmp(cmd, "find") == 0 && argc >= 4)
         return cmd_find(argv[2], argv[3], argc > 4 ? argv[4] : NULL);
     if (strcmp(cmd, "dump") == 0 && argc >= 4)

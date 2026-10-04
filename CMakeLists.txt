@@ -24,6 +24,7 @@ add_library(wwf_assets STATIC
   src/assets/img.c
   src/assets/lod.c
   src/assets/catalog.c
+  src/assets/layers.c
   src/assets/png_read.c
   src/assets/artsrc.c
 )

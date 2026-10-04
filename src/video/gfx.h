@@ -44,6 +44,8 @@ typedef struct {
     int hi_factor;         /* k: override pixels per original pixel */
     uint8_t *hi;           /* (width*k) x (height*k) indices */
     uint32_t *hi_detail;   /* same size, detail words; NULL for indexed overrides */
+    uint8_t hi_off;        /* the override is switched off (an art layer, src/assets/layers.h): drawn from the original pixels
+                              and not read until it is switched on */
     int blank;             /* every pixel is zero (the DMA of a zero block): drawn as a plain fill */
     /* Kept for the video sink (video.h): its textures for this image, valid while `sink_gen` equals `gen`.
      * `gen` changes whenever the override is attached or dropped. */
@@ -53,6 +55,7 @@ typedef struct {
     unsigned sink_gen;
     unsigned sink_owner;
     uint32_t sink_tex[3];  /* pixels, override pixels, override detail */
+    unsigned sink_queued;  /* the sink's tag while the sink has this image queued to make its override textures */
 } gfx_image;
 
 /* A decoded, prepared override (indices, and detail words for true colour art), not yet attached to an image. */

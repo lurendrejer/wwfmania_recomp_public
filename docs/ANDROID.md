@@ -108,7 +108,8 @@ internal storage, the same folder as the `noart` switch), then start the game:
 
     adb shell run-as <app id> touch files/gpu         # internal storage path as SDL_AndroidGetInternalStoragePath() gives it
 
-(`rm` the file to turn it off; `noart` next to it still turns the HD art off.) The F1 menu has the same switch on the MODS
+(`rm` the file to turn it off; `noart` next to it still turns the HD art off.) An empty file `asynccompute` next to it turns on async compute (docs/VIDEO.md), which spreads the making of the
+GPU textures over frames; the stats line in the log then ends with `async compute: ...`. The F1 menu has the same switch on the MODS
 page (`GPU DRAWING`, needs APPLY AND RESTART), saved as `gpu=1` in `wwf.cfg`. `adb logcat -s SDL/APP` shows what happened:
 `WWF: gpu file found, GPU drawing is on`, then either `GPU path on: <GL_VERSION, GL_RENDERER>` or `GPU path not used: <why>`
 (the game then runs on the CPU as before). The existing line `frame N, X ms for the last 60 (machine M, present P)` shows the

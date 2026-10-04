@@ -306,6 +306,8 @@ const gfx_image *gfx_get(gfx_cache *gc, const cat_image *ci)
     if (gi->hi_state == 0) {
         if (!ci->has_override)
             gi->hi_state = -1;
+        else if (gi->hi_off)
+            ;                       /* switched off: read when it is switched on and drawn */
         else if (gc->submit)
             request(gc, gi, 0);
         else
@@ -465,7 +467,8 @@ int gfx_pending_count(const gfx_cache *gc)
 
 void gfx_prefetch_add(gfx_cache *gc, const cat_image *ci)
 {
-    if (!gc->submit || !ci->has_override || gc->images[ci - gc->cat->images].hi_state != 0)
+    if (!gc->submit || !ci->has_override || gc->images[ci - gc->cat->images].hi_state != 0 ||
+        gc->images[ci - gc->cat->images].hi_off)
         return;
     if (gc->plan_n == gc->plan_cap) {
         int nc = gc->plan_cap ? gc->plan_cap * 2 : 1024;
@@ -494,7 +497,7 @@ void gfx_prefetch_pump(gfx_cache *gc)
             break;
         }
         gfx_image *gi = &gc->images[gc->plan[gc->plan_pos]];
-        if (gi->hi_state == 0) {
+        if (gi->hi_state == 0 && !gi->hi_off) {
             if (!request(gc, gi, 1))
                 return;                     /* the queue is full: try again next frame */
             budget--;
