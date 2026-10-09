@@ -118,6 +118,7 @@ keep their addresses.
 | `dink` | Dink, Doink's little sidekick: Doink at half the size, on a select square of his own; see [mods/dink/README.md](../mods/dink/README.md) |
 | `chair` | the cut folding chair: Down + Down + Block at the side of the ring picks it up, walk with it, any button swings it; see [mods/chair/README.md](../mods/chair/README.md) |
 | `coopladder` | two people play the one-player championship ladder together: COOP starts it, `--mod coopladder=N` (0 rumble, 1 Intercontinental, 2 WWF, 3 ask); see [mods/coopladder/README.md](../mods/coopladder/README.md) |
+| `outsidedive` | running attacks at an opponent outside the ring go over the ropes and land on him (standing or lying); see [mods/outsidedive/README.md](../mods/outsidedive/README.md) |
 
 ## Switching mods while the game runs
 
@@ -128,7 +129,7 @@ number is shown as it is). SAVE keeps what is on for the next start. Which page 
 
 - `live = 1`: the mod only reads and writes what its hooks set every frame and `shutdown` puts it back, so it can be
   switched at any time, also in a match: damage, matchtime, cpuskill, moongravity, nodebris, disco, training,
-  chatterbox, brokenrecord, wrongnames, easymoves, sansring, bamfire, doinkpie. The tests `mod_live_*` switch each one
+  chatterbox, brokenrecord, wrongnames, easymoves, sansring, bamfire, doinkpie, outsidedive. The tests `mod_live_*` switch each one
   on and off in the select screen and in a match with `wwfrun --mod-on NAME[=N]@FRAME` / `--mod-off NAME@FRAME`
   and check that the match is reached and goes on. They do not check each mod's effect when it is switched on late.
 - `live = 0` (the MODS page): the mod builds something when a match or the game starts (wrestlers, objects,

@@ -357,7 +357,7 @@ if(EXISTS ${WWF_ORIG_IMG}/ADAM.LOD)
       # the mods that can be switched on and off while the game runs (wwf_mod.live): on in the select screen, off
       # before the match, on and off again in the match. The game must go on to the match as without them.
       foreach(live_mod damage matchtime cpuskill moongravity nodebris disco training chatterbox brokenrecord
-                       wrongnames easymoves sansring bamfire doinkpie)
+                       wrongnames easymoves sansring bamfire doinkpie outsidedive)
         add_test(NAME mod_live_${live_mod} COMMAND wwfrun ${WWF_GEN_DIR} ${WWF_ORIG_IMG} 3200
                  --skip-selftest --free-play
                  --input 500,4,coins,4 --input 700,4,coins,4 --input 730,4,coins,32

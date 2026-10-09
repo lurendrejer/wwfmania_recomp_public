@@ -212,6 +212,16 @@ int main(int argc, char **argv)
         }
     }
 
+    if (mods_find("outsidedive")) {
+        snprintf(w.gen_dir, sizeof w.gen_dir, "%s", "/nonexistent-gen-dir");
+        CHECK(!mods_enable(&w, "outsidedive", err, sizeof err) && err[0] && w.nmods == 0);
+        if (argc > 1) {
+            snprintf(w.gen_dir, sizeof w.gen_dir, "%s", argv[1]);
+            CHECK(wolf_symbol_addr(&w, "dive_on") != 0);
+            CHECK(wolf_symbol_addr(&w, "dive_tick") != 0 && wolf_symbol_addr(&w, "dive_hit") != 0);
+        }
+    }
+
     if (mods_find("doinkpie")) {
         snprintf(w.gen_dir, sizeof w.gen_dir, "%s", "/nonexistent-gen-dir");
         CHECK(!mods_enable(&w, "doinkpie", err, sizeof err) && err[0] && w.nmods == 0);

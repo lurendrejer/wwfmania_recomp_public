@@ -1,0 +1,20 @@
+# Dives to the outside (mods/outsidedive/README.md): a running attack at a target outside the ring goes over the ropes
+# and comes down on him. asm/OUTSIDEDIVE.ASM does the work, dive_on (mod.c) switches it.
+srcdir asm
+module OUTSIDEDIVE
+# every wrestler's mode_running: around the call of its button handler (the third 'call a0' of the file)
+edit	BRET.ASM	sub	{3}^\tcall\ta0$	\tcalla\tdive_pre\n\tcall\ta0\n\tcalla\tdive_post
+edit	RAZOR.ASM	sub	{3}^\tcall\ta0$	\tcalla\tdive_pre\n\tcall\ta0\n\tcalla\tdive_post
+edit	TAKER.ASM	sub	{3}^\tcall\ta0$	\tcalla\tdive_pre\n\tcall\ta0\n\tcalla\tdive_post
+edit	YOKO.ASM	sub	{3}^\tcall\ta0$	\tcalla\tdive_pre\n\tcall\ta0\n\tcalla\tdive_post
+edit	SHAWN.ASM	sub	{3}^\tcall\ta0$	\tcalla\tdive_pre\n\tcall\ta0\n\tcalla\tdive_post
+edit	BAM.ASM	sub	{3}^\tcall\ta0$	\tcalla\tdive_pre\n\tcall\ta0\n\tcalla\tdive_post
+edit	DOINK.ASM	sub	{3}^\tcall\ta0$	\tcalla\tdive_pre\n\tcall\ta0\n\tcalla\tdive_post
+edit	LEX.ASM	sub	{3}^\tcall\ta0$	\tcalla\tdive_pre\n\tcall\ta0\n\tcalla\tdive_post
+# Bam Bam's and Doink's flying clothesline only starts near the middle of the ring; a dive starts anywhere
+edit	BAM.ASM	sub	^\tcmpi\tRING_X_MID([+-])70h,a0$	\tcalla\tdive_xmid\n\tcmpi\tRING_X_MID\g<1>70h,a0
+edit	DOINK.ASM	sub	^\tcmpi\tRING_X_MID([+-])70h,a0$	\tcalla\tdive_xmid\n\tcmpi\tRING_X_MID\g<1>70h,a0
+# in the air on a dive the ropes do not hold him (dive_tick also steers the flight)
+edit	WRESTLE.ASM	after	^ SUBRP\tconfine_wrestler$	\tcalla\tdive_tick\n\tmove\ta0,a0\n\tjrnz\t#no_confine
+# a hit of an attack (dive_hit): from then on dive_tick leaves the attack's hit box alone
+edit	COLLIS.ASM	after	a successful hit$	\tcalla\tdive_hit
